@@ -1,6 +1,5 @@
 name: Build and Release Differon
 
-# This workflow triggers when you push a tag that starts with 'v'
 on:
   push:
     tags:
@@ -8,37 +7,54 @@ on:
 
 jobs:
   build:
-    # This job runs on multiple operating systems in parallel
     runs-on: ${{ matrix.os }}
     
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
+      fail-fast: false  # Don't cancel other jobs if one fails
 
     steps:
-      # Step 1: Check out your code
       - name: Check out Git repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # Step 3: Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Build the Electron app
-      # This will create installers for the current OS
+      # macOS specific: Install dmg-license if needed
+      - name: Install macOS build tools
+        if: matrix.os == 'macos-latest'
+        run: |
+          python3 -m pip install setuptools
+
+      # Linux specific: Install required packages
+      - name: Install Linux build tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+
       - name: Build Electron app
         run: npm run dist
+        env:
+          # Disable code signing for macOS in CI
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      # Step 5: Upload the built installers as artifacts
-      # This makes them available for download from the Actions tab
+      # Debug: List what was built
+      - name: List dist contents
+        run: |
+          echo "Contents of dist folder:"
+          ls -la dist/ || echo "dist folder not found"
+        shell: bash
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
+        if: always()  # Upload even if previous steps failed
         with:
           name: ${{ matrix.os }}-installer
           path: |
@@ -47,26 +63,36 @@ jobs:
             dist/*.dmg
             dist/*.AppImage
             dist/*.deb
+            dist/*.rpm
             dist/*.snap
+            dist/*.blockmap
+          if-no-files-found: warn  # Warn instead of error if no files found
           retention-days: 5
 
-  # This job runs after all builds complete
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: always()  # Run even if some builds failed
     
     steps:
-      # Download all the artifacts from the build job
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:
           path: installers
 
-      # Create a GitHub Release and upload all installers
+      # Debug: Show what artifacts we have
+      - name: Display structure of downloaded files
+        run: ls -R installers/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          draft: true  # Creates a draft release you can edit before publishing
-          files: installers/**/*
+          draft: true
+          files: |
+            installers/**/*.exe
+            installers/**/*.dmg
+            installers/**/*.AppImage
+            installers/**/*.deb
+            installers/**/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
