@@ -26,11 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # macOS specific: Install dmg-license if needed
-      - name: Install macOS build tools
-        if: matrix.os == 'macos-latest'
-        run: |
-          python3 -m pip install setuptools
+      # macOS specific: Skip setuptools installation (not needed for dmg)
+      # - name: Install macOS build tools
+      #   if: matrix.os == 'macos-latest'
+      #   run: |
+      #     python3 -m pip install setuptools
 
       # Linux specific: Install required packages
       - name: Install Linux build tools
