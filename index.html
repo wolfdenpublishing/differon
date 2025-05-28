@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+    <title>Differon</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="toolbar">
+        <button id="compareBtn" class="toolbar-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
+            </svg>
+            Compare
+        </button>
+        <button id="clearBtn" class="toolbar-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/>
+            </svg>
+            Clear
+        </button>
+        <span class="toolbar-separator"></span>
+        <div class="diff-mode-controls">
+            <label class="toolbar-label">Diff Mode:</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="diffMode" value="sentence" checked>
+                    <span>Whole Sentence</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="diffMode" value="fuzzy">
+                    <span>Fuzzy Sentence</span>
+                </label>
+            </div>
+        </div>
+        <div class="fuzz-controls" id="fuzzControls" style="display: none;">
+            <label class="toolbar-label">Fuzz:</label>
+            <input type="range" id="fuzzSlider" min="0" max="10" value="5" class="fuzz-slider">
+            <span id="fuzzValue" class="fuzz-value">0.5</span>
+        </div>
+        <span class="toolbar-separator"></span>
+        <div class="zoom-controls">
+            <button id="zoomOutBtn" class="zoom-btn" title="Zoom Out (Ctrl+-)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35M8 11h6"></path>
+                </svg>
+            </button>
+            <span id="zoomLevel" class="zoom-level">100%</span>
+            <button id="zoomInBtn" class="zoom-btn" title="Zoom In (Ctrl++)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35M11 8v6M8 11h6"></path>
+                </svg>
+            </button>
+            <button id="zoomResetBtn" class="zoom-btn" title="Reset Zoom (Ctrl+0)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="pane" id="leftPane">
+            <div class="tab-bar" id="leftTabBar">
+                <div class="tabs-container" id="leftTabsContainer">
+                    <!-- Tabs will be dynamically inserted here -->
+                </div>
+                <button class="tab-move" id="leftMoveTab" title="Move to Revised">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </button>
+                <button class="tab-new" id="leftNewTab" title="New document">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="pane-header">
+                <div class="pane-title">
+                    <strong>Original Document</strong>
+                    <span class="file-path" id="leftPath"></span>
+                </div>
+            </div>
+            <div class="pane-controls">
+                <label class="control-label">
+                    <input type="checkbox" id="leftSelectAll" class="select-all-checkbox">
+                    Select All
+                </label>
+                <span class="control-separator"></span>
+                <div class="color-controls">
+                    <div class="color-control-group">
+                        <label>BG:</label>
+                        <input type="range" id="leftBgColor" min="0" max="360" value="0" class="color-slider">
+                        <input type="range" id="leftBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                    </div>
+                    <div class="color-control-group">
+                        <label>HL:</label>
+                        <input type="range" id="leftHlColor" min="0" max="360" value="0" class="color-slider">
+                        <input type="range" id="leftHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                    </div>
+                    <button id="leftColorReset" class="color-reset-btn" title="Reset colors to default">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                </div>
+                <button id="leftClearBtn" class="pane-clear-btn" title="Clear document">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="drop-zone" id="leftDrop">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M7 10l5-5m0 0l5 5m-5-5v12M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
+                </svg>
+                <p>Drop a file anywhere in this window, or use the buttons to browse for a file or paste from the clipboard.</p>
+                <div class="drop-zone-buttons">
+                    <button class="drop-zone-btn" id="leftBrowseBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9a2 2 0 0 1 2-2h1.586a1 1 0 0 0 .707-.293l1.414-1.414A1 1 0 0 1 9.414 5h5.172a1 1 0 0 1 .707.293l1.414 1.414a1 1 0 0 0 .707.293H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/>
+                            <circle cx="12" cy="13" r="3"/>
+                        </svg>
+                        Click to Browse for a File
+                    </button>
+                    <button class="drop-zone-btn" id="leftPasteBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Click to Paste Clipboard Contents
+                    </button>
+                </div>
+            </div>
+            <div class="editor-container" id="leftEditor" style="display: none;">
+                <div class="paragraph-numbers" id="leftParagraphNumbers"></div>
+                <div class="editor-content" id="leftContent"></div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="pane" id="rightPane">
+            <div class="tab-bar" id="rightTabBar">
+                <div class="tabs-container" id="rightTabsContainer">
+                    <!-- Tabs will be dynamically inserted here -->
+                </div>
+                <button class="tab-move" id="rightMoveTab" title="Move to Original">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 5 5 12 12 19"></polyline>
+                    </svg>
+                </button>
+                <button class="tab-new" id="rightNewTab" title="New document">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="pane-header">
+                <div class="pane-title">
+                    <strong>Revised Document</strong>
+                    <span class="file-path" id="rightPath"></span>
+                </div>
+            </div>
+            <div class="pane-controls">
+                <label class="control-label">
+                    <input type="checkbox" id="rightSelectAll" class="select-all-checkbox">
+                    Select All
+                </label>
+                <span class="control-separator"></span>
+                <div class="color-controls">
+                    <div class="color-control-group">
+                        <label>BG:</label>
+                        <input type="range" id="rightBgColor" min="0" max="360" value="120" class="color-slider">
+                        <input type="range" id="rightBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                    </div>
+                    <div class="color-control-group">
+                        <label>HL:</label>
+                        <input type="range" id="rightHlColor" min="0" max="360" value="120" class="color-slider">
+                        <input type="range" id="rightHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                    </div>
+                    <button id="rightColorReset" class="color-reset-btn" title="Reset colors to default">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                </div>
+                <button id="rightClearBtn" class="pane-clear-btn" title="Clear document">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="drop-zone" id="rightDrop">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M7 10l5-5m0 0l5 5m-5-5v12M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
+                </svg>
+                <p>Drop a file anywhere in this window, or use the buttons to browse for a file or paste from the clipboard.</p>
+                <div class="drop-zone-buttons">
+                    <button class="drop-zone-btn" id="rightBrowseBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9a2 2 0 0 1 2-2h1.586a1 1 0 0 0 .707-.293l1.414-1.414A1 1 0 0 1 9.414 5h5.172a1 1 0 0 1 .707.293l1.414 1.414a1 1 0 0 0 .707.293H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/>
+                            <circle cx="12" cy="13" r="3"/>
+                        </svg>
+                        Click to Browse for a File
+                    </button>
+                    <button class="drop-zone-btn" id="rightPasteBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Click to Paste Clipboard Contents
+                    </button>
+                </div>
+            </div>
+            <div class="editor-container" id="rightEditor" style="display: none;">
+                <div class="paragraph-numbers" id="rightParagraphNumbers"></div>
+                <div class="editor-content" id="rightContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-left">
+            <span id="appInfo"></span>
+        </div>
+        <div class="status-right">
+            <span id="dateTime"></span>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

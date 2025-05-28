@@ -1,0 +1,48 @@
+{
+  "window": {
+    "defaultWidth": 1400,
+    "defaultHeight": 800,
+    "minWidth": 800,
+    "minHeight": 600
+  },
+  "zoom": {
+    "default": 1.0,
+    "min": 0.5,
+    "max": 3.0,
+    "increment": 0.25
+  },
+  "colors": {
+    "left": {
+      "defaultBgHue": 0,
+      "defaultBgIntensity": 20,
+      "defaultHlHue": 0,
+      "defaultHlIntensity": 40
+    },
+    "right": {
+      "defaultBgHue": 120,
+      "defaultBgIntensity": 20,
+      "defaultHlHue": 120,
+      "defaultHlIntensity": 40
+    },
+    "bgIntensityMin": 5,
+    "bgIntensityMax": 40,
+    "hlIntensityMin": 20,
+    "hlIntensityMax": 60
+  },
+  "fuzzyMatching": {
+    "minMatchPercent": 10,
+    "maxMatchPercent": 100,
+    "defaultFuzzLevel": 0.50,
+    "wordLookAheadLimit": 5
+  },
+  "ui": {
+    "statusBarUpdateIntervalMs": 60000,
+    "paragraphSyncHighlightDurationMs": 600,
+    "paragraphSyncHighlightColor": "rgba(100, 100, 255, 0.3)",
+    "sentenceSyncHighlightColor": "rgba(100, 100, 255, 0.5)",
+    "tooltipDisplayDurationMs": 1500
+  },
+  "toolbar": {
+    "defaultDiffMode": "sentence"
+  }
+}
