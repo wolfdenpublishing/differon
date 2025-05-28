@@ -23,7 +23,6 @@
   "build": {
     "appId": "pub.wolfden.differon",
     "productName": "Differon",
-    "description": "A natural language file comparison tool",
     "copyright": "Copyright © 2025 Ron Pacheco",
     "directories": {
       "output": "dist"
