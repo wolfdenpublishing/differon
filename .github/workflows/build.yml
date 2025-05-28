@@ -1,0 +1,72 @@
+name: Build and Release Differon
+
+# This workflow triggers when you push a tag that starts with 'v'
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    # This job runs on multiple operating systems in parallel
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      # Step 1: Check out your code
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Build the Electron app
+      # This will create installers for the current OS
+      - name: Build Electron app
+        run: npm run dist
+
+      # Step 5: Upload the built installers as artifacts
+      # This makes them available for download from the Actions tab
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-installer
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.snap
+          retention-days: 5
+
+  # This job runs after all builds complete
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Download all the artifacts from the build job
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: installers
+
+      # Create a GitHub Release and upload all installers
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true  # Creates a draft release you can edit before publishing
+          files: installers/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
