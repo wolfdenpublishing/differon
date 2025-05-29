@@ -167,6 +167,9 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
 
+  // Remove the application menu to reclaim vertical space
+  mainWindow.removeMenu();
+
   // Save window state on various events
   let saveTimeout;
   const debouncedSaveWindowState = () => {
@@ -344,8 +347,7 @@ function createWindow() {
     }
   ];
 
-  const menu = Menu.buildFromTemplate(menuTemplate);
-  Menu.setApplicationMenu(menu);
+  // Menu removed - keyboard shortcuts are still handled by the renderer process
 
   // Restore state when window is ready
   mainWindow.webContents.once('dom-ready', () => {

@@ -1,3 +1,92 @@
+// Custom tooltip system for scalable tooltips
+let customTooltip = null;
+let tooltipTimeout = null;
+
+function showCustomTooltip(element, text) {
+    hideCustomTooltip();
+    
+    customTooltip = document.createElement('div');
+    customTooltip.className = 'custom-tooltip';
+    customTooltip.textContent = text;
+    document.body.appendChild(customTooltip);
+    
+    const rect = element.getBoundingClientRect();
+    customTooltip.style.left = rect.left + (rect.width / 2) + 'px';
+    customTooltip.style.top = (rect.top - 10) + 'px';
+    
+    // Center the tooltip horizontally
+    setTimeout(() => {
+        const tooltipRect = customTooltip.getBoundingClientRect();
+        customTooltip.style.left = (rect.left + (rect.width / 2) - (tooltipRect.width / 2)) + 'px';
+        customTooltip.style.top = (rect.top - tooltipRect.height - 8) + 'px';
+        customTooltip.classList.add('visible');
+    }, 0);
+}
+
+function hideCustomTooltip() {
+    if (customTooltip) {
+        customTooltip.remove();
+        customTooltip = null;
+    }
+    if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+    }
+}
+
+function addCustomTooltip(element, text) {
+    // Store the original title as custom tooltip text
+    if (!text && element.hasAttribute('title')) {
+        text = element.getAttribute('title');
+        element.setAttribute('data-tooltip', text);
+        element.removeAttribute('title');
+    }
+    
+    element.addEventListener('mouseenter', () => {
+        const tooltipText = text || element.getAttribute('data-tooltip');
+        if (tooltipText) {
+            tooltipTimeout = setTimeout(() => {
+                showCustomTooltip(element, tooltipText);
+            }, 500); // Show after 500ms hover
+        }
+    });
+    
+    element.addEventListener('mouseleave', hideCustomTooltip);
+    element.addEventListener('mousedown', hideCustomTooltip);
+}
+
+// Function to convert all title attributes to custom tooltips
+function convertAllTooltips() {
+    // Convert all elements with title attribute
+    document.querySelectorAll('[title]').forEach(element => {
+        addCustomTooltip(element);
+    });
+    
+    // Monitor for new elements with title attributes
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) { // Element node
+                    if (node.hasAttribute && node.hasAttribute('title')) {
+                        addCustomTooltip(node);
+                    }
+                    // Check children too
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('[title]').forEach(element => {
+                            addCustomTooltip(element);
+                        });
+                    }
+                }
+            });
+        });
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
 // Document state management
 class DocumentState {
     constructor() {
@@ -405,6 +494,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
+    // Convert all native tooltips to custom scalable tooltips
+    convertAllTooltips();
+    
     // Load configuration
     try {
         appConfig = await window.api.getConfig();
@@ -666,7 +758,6 @@ async function runParagraphDiff() {
                 if (leftParagraphElement) {
                     leftParagraphElement.classList.add('paragraph-matched');
                     leftParagraphElement.style.cursor = 'pointer';
-                    leftParagraphElement.title = 'Click to sync with matching paragraph';
                     // Store both indices as data attributes
                     leftParagraphElement.dataset.paragraphIndex = leftIdx;
                     leftParagraphElement.dataset.matchedIndex = rightIdx;
@@ -674,6 +765,9 @@ async function runParagraphDiff() {
                     // Remove any existing click handlers first
                     const newLeftElement = leftParagraphElement.cloneNode(true);
                     leftParagraphElement.parentNode.replaceChild(newLeftElement, leftParagraphElement);
+                    
+                    // Add custom tooltip
+                    addCustomTooltip(newLeftElement, 'Click to sync with matching paragraph');
                     
                     // Add new click handler to the cloned element
                     newLeftElement.addEventListener('click', function(e) {
@@ -689,7 +783,6 @@ async function runParagraphDiff() {
                 if (rightParagraphElement) {
                     rightParagraphElement.classList.add('paragraph-matched');
                     rightParagraphElement.style.cursor = 'pointer';
-                    rightParagraphElement.title = 'Click to sync with matching paragraph';
                     // Store both indices as data attributes
                     rightParagraphElement.dataset.paragraphIndex = rightIdx;
                     rightParagraphElement.dataset.matchedIndex = leftIdx;
@@ -697,6 +790,9 @@ async function runParagraphDiff() {
                     // Remove any existing click handlers first
                     const newRightElement = rightParagraphElement.cloneNode(true);
                     rightParagraphElement.parentNode.replaceChild(newRightElement, rightParagraphElement);
+                    
+                    // Add custom tooltip
+                    addCustomTooltip(newRightElement, 'Click to sync with matching paragraph');
                     
                     // Add new click handler to the cloned element
                     newRightElement.addEventListener('click', function(e) {
@@ -933,7 +1029,11 @@ function displayFile(side, content, filePath) {
     }
     
     pathElement.textContent = filePath;
-    pathElement.title = filePath;
+    // Use custom tooltip for file path
+    if (filePath) {
+        pathElement.setAttribute('data-tooltip', filePath);
+        addCustomTooltip(pathElement, filePath);
+    }
 
     // Split content into paragraphs (handle different line endings)
     const paragraphs = content.split(/\r\n|\r|\n/);
@@ -1287,13 +1387,15 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 leftElement.classList.add('paragraph-matched');
                 // Add click handler for syncing
                 leftElement.style.cursor = 'pointer';
-                leftElement.title = 'Click to sync with matching paragraph';
                 leftElement.dataset.paragraphIndex = match.left;
                 leftElement.dataset.matchedIndex = match.right;
                 
                 // Remove any existing click handlers first
                 const newLeftElement = leftElement.cloneNode(true);
                 leftElement.parentNode.replaceChild(newLeftElement, leftElement);
+                
+                // Add custom tooltip
+                addCustomTooltip(newLeftElement, 'Click to sync with matching paragraph');
                 
                 newLeftElement.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -1312,13 +1414,15 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 rightElement.classList.add('paragraph-matched');
                 // Add click handler for syncing
                 rightElement.style.cursor = 'pointer';
-                rightElement.title = 'Click to sync with matching paragraph';
                 rightElement.dataset.paragraphIndex = match.right;
                 rightElement.dataset.matchedIndex = match.left;
                 
                 // Remove any existing click handlers first
                 const newRightElement = rightElement.cloneNode(true);
                 rightElement.parentNode.replaceChild(newRightElement, rightElement);
+                
+                // Add custom tooltip
+                addCustomTooltip(newRightElement, 'Click to sync with matching paragraph');
                 
                 newRightElement.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -1352,12 +1456,14 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 // Only make clickable if sentence matching is disabled
                 if (!sentenceMatchingEnabled) {
                     leftElement.style.cursor = 'pointer';
-                    leftElement.title = `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`;
                     leftElement.dataset.paragraphIndex = match.left;
                     leftElement.dataset.matchedIndex = match.right;
                     
                     const newLeftElement = leftElement.cloneNode(true);
                     leftElement.parentNode.replaceChild(newLeftElement, leftElement);
+                    
+                    // Add custom tooltip
+                    addCustomTooltip(newLeftElement, `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`);
                     
                     newLeftElement.addEventListener('click', function(e) {
                         e.preventDefault();
@@ -1381,12 +1487,14 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 // Only make clickable if sentence matching is disabled
                 if (!sentenceMatchingEnabled) {
                     rightElement.style.cursor = 'pointer';
-                    rightElement.title = `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`;
                     rightElement.dataset.paragraphIndex = match.right;
                     rightElement.dataset.matchedIndex = match.left;
                     
                     const newRightElement = rightElement.cloneNode(true);
                     rightElement.parentNode.replaceChild(newRightElement, rightElement);
+                    
+                    // Add custom tooltip
+                    addCustomTooltip(newRightElement, `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`);
                     
                     newRightElement.addEventListener('click', function(e) {
                         e.preventDefault();

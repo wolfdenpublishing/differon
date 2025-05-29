@@ -1,5 +1,5 @@
 # Differon - Natural Language File Comparison Application
-## Requirements Specification v2.0
+## Requirements Specification v3.0
 
 ## 1. Overview
 
@@ -90,27 +90,37 @@ Differon is a desktop file comparison application specifically designed for comp
 - **Dynamic Heights**: Paragraph numbers dynamically resize to match wrapped paragraph heights
 - **Selection Persistence**: Selected paragraphs are preserved when switching tabs
 
-### 2.7 Diff Modes
-Two diff granularity modes for the Compare function:
+### 2.7 Diff Algorithms
 
-#### 2.7.1 Whole Sentence (DEFAULT)
-- Shows complete sentences as changed if any part differs
-- Sentences that match exactly between documents are clickable for synchronization
-- Uses exact matching only
+Differon provides two independent levels of comparison with separate algorithm controls:
 
-#### 2.7.2 Fuzzy Sentence
-- Identifies similar sentences based on word overlap percentage
-- Shows inline word-level differences within matched sentences
-- Fuzz Level Control:
-  - Slider appears when mode is selected (range: 0.00 to 1.00)
-  - 0.00 = strictest matching (100% similarity required)
-  - 1.00 = loosest matching (10% similarity required)
-  - Linear interpolation between min and max thresholds
-- Fuzzy matched sentences show:
+#### 2.7.1 Paragraph-Level Diffing
+- **Always Active**: Runs automatically when two documents are loaded
+- **Algorithm Selection**:
+  - **Thomas**: Sequential n² matching that preserves document order
+  - **Patience**: Advanced algorithm that handles moved blocks and document restructuring
+- **Fuzziness Control**:
+  - Slider range: 0.0 to 1.0
+  - 0.0 = Exact matching only
+  - 1.0 = Maximum fuzzy matching (30% similarity threshold)
+- **Variable Alpha Change Bars**: Fuzzy matched paragraphs show change bars with reduced opacity based on similarity
+- **Clickable Matching**: Exact and fuzzy matched paragraphs are clickable for synchronization (when sentence matching is disabled)
+
+#### 2.7.2 Sentence-Level Diffing (Compare Button)
+- **Algorithm Selection**:
+  - **Thomas** (DEFAULT): Shows complete sentences as changed if any part differs
+  - **Levenshtein** (disabled): Character-based edit distance
+  - **Character** (disabled): Character-by-character comparison
+- **Fuzziness Control**:
+  - Independent slider range: 0.0 to 1.0
+  - 0.0 = Exact sentence matching only
+  - 1.0 = Maximum fuzzy matching (10% similarity threshold)
+- **Fuzzy Sentence Display**:
+  - Shows inline word-level differences within matched sentences
   - Deletions highlighted inline in the left document
   - Additions highlighted inline in the right document
   - Background tint to indicate fuzzy match
-- Both exact and fuzzy matched sentences are clickable for synchronization
+- **Sentence Synchronization**: Both exact and fuzzy matched sentences are clickable
 
 ### 2.8 Comparison Display
 - **Compare Button**: Analyzes only selected paragraphs from each document
@@ -154,7 +164,8 @@ Two diff granularity modes for the Compare function:
 ### 3.1 Main Window Structure
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Main Toolbar                                                 │
+│ [Action Buttons]  Paragraph Algorithm Toolbar                │
+│                   Sentence Algorithm Toolbar                 │
 ├─────────────────────────────────────────────────────────────┤
 │ ┌─────────────────────────┐ │ ┌─────────────────────────┐ │
 │ │ Tab Bar                  │ │ │ Tab Bar                 │ │
@@ -167,23 +178,33 @@ Two diff granularity modes for the Compare function:
 │ │                         │ │ │                         │ │
 │ └─────────────────────────┘ │ └─────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
-│ Status Bar                                                   │
+│ Status Bar (with zoom controls on right)                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Main Toolbar
-- **Compare Button**: Triggers comparison of selected paragraphs
-- **Clear Button**: Removes all comparison highlighting (preserves change bars)
-- **Diff Mode Selection**: Radio buttons for Whole Sentence | Fuzzy Sentence
-- **Fuzz Level Control** (visible only in Fuzzy Sentence mode):
-  - Label: "Fuzz:"
-  - Slider: 0.00 to 1.00 range
-  - Value display: Shows current setting with 2 decimal places
-- **Zoom Controls** (right-aligned):
-  - Zoom Out button (-)
-  - Zoom level display (e.g., "100%")
-  - Zoom In button (+)
-  - Reset Zoom button
+### 3.2 Toolbar Layout
+
+#### 3.2.1 Action Buttons (Fixed Left Panel)
+- **Compare Button**: Triggers sentence-level comparison of selected paragraphs
+- **Clear Button**: Clears all selections and comparison highlighting (preserves change bars)
+
+#### 3.2.2 Algorithm Toolbars
+
+**Paragraph Algorithm Toolbar:**
+- **Enable Checkbox**: "Paragraph:" label with checkbox to enable/disable
+- **Algorithm Radio Buttons**: Thomas | Patience
+- **Fuzziness Control**:
+  - Label: "Fuzziness:"
+  - Slider: 0.0 to 1.0
+  - Value display with 1 decimal place
+
+**Sentence Algorithm Toolbar:**
+- **Enable Checkbox**: "Sentence:" label with checkbox to enable/disable
+- **Algorithm Radio Buttons**: Thomas | Levenshtein (disabled) | Character (disabled)
+- **Fuzziness Control**:
+  - Label: "Fuzziness:"
+  - Slider: 0.0 to 1.0
+  - Value display with 1 decimal place
 
 ### 3.3 Document Panes
 Each pane contains:
@@ -199,11 +220,11 @@ Each pane contains:
 - Filename in parentheses (normal weight) with ellipsis for long paths
 
 #### 3.3.3 Document Control Bar
-- **Select All Checkbox** with label (leftmost)
+- **Select All Checkbox** (no label, aligned with paragraph checkboxes)
 - **Color Controls**:
-  - BG: Color slider (0-360° hue) + Intensity slider (5-40%)
-  - HL: Color slider (0-360° hue) + Intensity slider (20-60%)
-  - Reset button (icon matches zoom reset)
+  - BG: Color slider (0-360° hue) + Intensity slider (configurable range)
+  - HL: Color slider (0-360° hue) + Intensity slider (configurable range)
+  - Reset button (circular arrow icon)
 - **Clear Document Button** (X icon, rightmost)
 
 #### 3.3.4 Editor Area
@@ -220,8 +241,13 @@ When file loaded:
 - Change bars on left edge for modified paragraphs
 
 ### 3.4 Status Bar
-- **Left Side**: Application name and version (e.g., "Differon 0.4.4")
-- **Right Side**: Current date and time (e.g., "Wednesday, May 28, 2025 01:28 AM")
+- **Left Side**: Application name and version (e.g., "Differon 0.6.2")
+- **Center**: Current date and time (e.g., "Wednesday, May 28, 2025 01:28 AM")
+- **Right Side**: Zoom controls
+  - Zoom Out button (-)
+  - Zoom level display (e.g., "100%")
+  - Zoom In button (+)
+  - Reset Zoom button
 - **Updates**: Time refreshes every minute
 - **Styling**: Dark gray background matching toolbar color scheme
 
@@ -307,11 +333,16 @@ When file loaded:
     "hlIntensityMin": 20,
     "hlIntensityMax": 60
   },
-  "fuzzyMatching": {
+  "fuzzySentenceMatching": {
     "minMatchPercent": 10,
     "maxMatchPercent": 100,
-    "defaultFuzzLevel": 0.50,
+    "defaultFuzzLevel": 0.00,
     "wordLookAheadLimit": 5
+  },
+  "fuzzyParagraphMatching": {
+    "minMatchPercent": 30,
+    "maxMatchPercent": 100,
+    "defaultFuzzLevel": 0.00
   },
   "ui": {
     "statusBarUpdateIntervalMs": 60000,
@@ -321,7 +352,10 @@ When file loaded:
     "tooltipDisplayDurationMs": 1500
   },
   "toolbar": {
-    "defaultDiffMode": "sentence"
+    "defaultParagraphEnabled": true,
+    "defaultParagraphAlgorithm": "thomas",
+    "defaultSentenceEnabled": true,
+    "defaultSentenceAlgorithm": "thomas"
   }
 }
 ```
@@ -368,7 +402,11 @@ When file loaded:
   - Pointer for clickable elements
   - Copy cursor when Ctrl held over diffs
 - **Sync Animations**: Brief blue highlight when syncing
-- **Tooltips**: Appear for copy actions, sync hints, and UI buttons
+- **Tooltips**: Custom scalable tooltips that adjust with zoom level
+  - Appear for all UI controls and buttons
+  - Show fuzzy match percentages
+  - Display copy action feedback
+  - Provide sync hints for matched content
 - **Modified Indicator**: Asterisk in tab title for unsaved changes
 
 ## 7. Session Persistence
@@ -379,8 +417,8 @@ The following is preserved between application sessions in `differon-state.json`
 - Active tab for each pane
 - Scroll positions for all documents
 - Selected paragraphs for all documents
-- Selected diff mode (Whole Sentence/Fuzzy Sentence)
-- Fuzz level setting
+- Paragraph algorithm settings (enabled, algorithm choice, fuzziness)
+- Sentence algorithm settings (enabled, algorithm choice, fuzziness)
 - Zoom level
 - All color settings (hue and intensity for BG/HL for both documents)
 - Document modified status
@@ -489,7 +527,30 @@ The following is preserved between sessions in `differon-window-state.json`:
 - Tab titles may truncate for very long filenames
 - Modified indicator (*) is visual only - no save functionality
 
+### 12.4 User Interface
+- Application menu has been removed to maximize vertical space
+- All keyboard shortcuts still function without menu
+- No DevTools or reload access without menu
+
 ## 13. Version History
+
+### Version 3.0 (Current)
+- **Major Refactoring**: Separated paragraph and sentence diffing with independent controls
+- **Algorithm Selection**: Added Thomas/Patience algorithms for paragraph matching
+- **Dual Fuzziness**: Independent fuzziness controls for paragraph and sentence levels
+- **UI Improvements**:
+  - Reorganized toolbar layout with fixed action buttons panel
+  - Moved zoom controls to status bar
+  - Removed application menu to reclaim vertical space
+  - Aligned Select All checkboxes with paragraph checkboxes
+- **Visual Enhancements**:
+  - Variable alpha change bars for fuzzy paragraph matches
+  - Updated button icons using Fluent UI design system
+  - Custom scalable tooltips that properly adjust with zoom
+- **Configuration Updates**:
+  - Separate fuzzy matching configs for paragraphs and sentences
+  - Dynamic slider range application from config
+  - Backward compatible state persistence
 
 ### Version 2.0
 - Added multi-document tab support
