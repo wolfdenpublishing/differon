@@ -224,6 +224,9 @@ function moveTabToOtherSide(fromSide) {
         doc.isModified = false;
         displayDocument(fromSide, doc);
         
+        // Update tab title to reflect cleared state
+        updateTabTitle(fromSide, doc.tabId, 'Untitled', false);
+        
         // Create new tab on the other side
         const toSide = fromSide === 'left' ? 'right' : 'left';
         const newTabId = createNewTab(toSide, content, filePath);

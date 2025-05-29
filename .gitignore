@@ -46,3 +46,7 @@ yarn.lock
 
 # Package lock files (you may want to keep package-lock.json)
 # package-lock.json
+
+# Claude Code files
+.claude/
+CLAUDE.md
