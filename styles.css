@@ -281,6 +281,8 @@ body {
     max-width: 200px;
     transition: all 0.2s;
     white-space: nowrap;
+    position: relative;
+    user-select: none;
 }
 
 .tab:hover {
@@ -293,6 +295,29 @@ body {
     color: #ffffff;
     border-color: #3e3e42;
     border-bottom-color: #1e1e1e;
+}
+
+.tab.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.tab.drag-over-left::before,
+.tab.drag-over-right::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #007acc;
+}
+
+.tab.drag-over-left::before {
+    left: -2px;
+}
+
+.tab.drag-over-right::after {
+    right: -2px;
 }
 
 .tab-title {

@@ -159,10 +159,10 @@ const MAX_TABS = 20;
 
 // Tab management functions
 function generateTabTitle(filePath) {
-    if (!filePath) return 'Untitled';
+    if (!filePath) return '(empty)';
     if (filePath.startsWith('Pasted at ')) return filePath;
     const parts = filePath.split(/[/\\]/);
-    return parts[parts.length - 1] || 'Untitled';
+    return parts[parts.length - 1] || '(empty)';
 }
 
 function createNewTab(side, content = '', filePath = '') {
@@ -182,6 +182,7 @@ function createNewTab(side, content = '', filePath = '') {
     const tabElement = document.createElement('div');
     tabElement.className = 'tab';
     tabElement.dataset.tabId = doc.tabId;
+    tabElement.draggable = true;
     tabElement.innerHTML = `
         <span class="tab-title">${escapeHtml(generateTabTitle(filePath))}</span>
         <button class="tab-close" title="Close tab">×</button>
@@ -198,6 +199,9 @@ function createNewTab(side, content = '', filePath = '') {
         e.stopPropagation();
         closeTab(side, doc.tabId);
     });
+    
+    // Add drag and drop functionality
+    setupTabDragAndDrop(tabElement, side);
     
     tabsContainer.appendChild(tabElement);
     
@@ -259,7 +263,9 @@ function closeTab(side, tabId) {
             doc.scrollTop = 0;
             doc.selectedParagraphs.clear();
             doc.isModified = false;
+            doc.pastedTimestamp = null; // Clear timestamp too
             displayDocument(side, doc);
+            updateTabTitle(side, tabId, '(empty)', false); // Update tab title
         }
         return;
     }
@@ -324,7 +330,7 @@ function moveTabToOtherSide(fromSide) {
         displayDocument(fromSide, doc);
         
         // Update tab title to reflect cleared state
-        updateTabTitle(fromSide, doc.tabId, 'Untitled', false);
+        updateTabTitle(fromSide, doc.tabId, '(empty)', false);
         
         // Create new tab on the other side
         const toSide = fromSide === 'left' ? 'right' : 'left';
@@ -484,6 +490,78 @@ function saveCurrentTabState(side) {
     const checkboxes = document.querySelectorAll(`#${side}ParagraphNumbers input[type="checkbox"]:checked`);
     checkboxes.forEach(cb => {
         doc.selectedParagraphs.add(parseInt(cb.dataset.paragraph));
+    });
+}
+
+// Tab drag and drop functionality
+let draggedTab = null;
+let draggedSide = null;
+
+function setupTabDragAndDrop(tabElement, side) {
+    tabElement.addEventListener('dragstart', (e) => {
+        draggedTab = tabElement;
+        draggedSide = side;
+        tabElement.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    
+    tabElement.addEventListener('dragend', (e) => {
+        tabElement.classList.remove('dragging');
+        // Clean up any drag-over indicators
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('drag-over-left', 'drag-over-right');
+        });
+        draggedTab = null;
+        draggedSide = null;
+    });
+    
+    tabElement.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!draggedTab || draggedSide !== side || draggedTab === tabElement) return;
+        
+        const rect = tabElement.getBoundingClientRect();
+        const midpoint = rect.left + rect.width / 2;
+        
+        // Remove other indicators
+        document.querySelectorAll(`#${side}TabsContainer .tab`).forEach(tab => {
+            if (tab !== tabElement) {
+                tab.classList.remove('drag-over-left', 'drag-over-right');
+            }
+        });
+        
+        if (e.clientX < midpoint) {
+            tabElement.classList.add('drag-over-left');
+            tabElement.classList.remove('drag-over-right');
+        } else {
+            tabElement.classList.add('drag-over-right');
+            tabElement.classList.remove('drag-over-left');
+        }
+    });
+    
+    tabElement.addEventListener('dragleave', (e) => {
+        tabElement.classList.remove('drag-over-left', 'drag-over-right');
+    });
+    
+    tabElement.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!draggedTab || draggedSide !== side || draggedTab === tabElement) return;
+        
+        const rect = tabElement.getBoundingClientRect();
+        const midpoint = rect.left + rect.width / 2;
+        const insertBefore = e.clientX < midpoint;
+        
+        const container = document.getElementById(`${side}TabsContainer`);
+        
+        if (insertBefore) {
+            container.insertBefore(draggedTab, tabElement);
+        } else {
+            container.insertBefore(draggedTab, tabElement.nextSibling);
+        }
+        
+        tabElement.classList.remove('drag-over-left', 'drag-over-right');
+        
+        // Save the new tab order
+        saveState();
     });
 }
 
@@ -1314,9 +1392,10 @@ function clearPane(side) {
     doc.scrollTop = 0;
     doc.selectedParagraphs.clear();
     doc.isModified = false;
+    doc.pastedTimestamp = null; // Clear timestamp too
     
     // Update tab title
-    updateTabTitle(side, doc.tabId, 'Untitled', false);
+    updateTabTitle(side, doc.tabId, '(empty)', false);
     
     // Update display
     displayDocument(side, doc);
@@ -2780,6 +2859,7 @@ async function loadSavedState() {
                 const tabElement = document.createElement('div');
                 tabElement.className = 'tab';
                 tabElement.dataset.tabId = doc.tabId;
+                tabElement.draggable = true;
                 tabElement.innerHTML = `
                     <span class="tab-title${doc.isModified ? ' modified' : ''}">${escapeHtml(generateTabTitle(doc.filePath))}</span>
                     <button class="tab-close" title="Close tab">×</button>
@@ -2796,6 +2876,9 @@ async function loadSavedState() {
                     e.stopPropagation();
                     closeTab('left', doc.tabId);
                 });
+                
+                // Add drag and drop functionality
+                setupTabDragAndDrop(tabElement, 'left');
                 
                 tabsContainer.appendChild(tabElement);
                 
@@ -2825,6 +2908,7 @@ async function loadSavedState() {
                 const tabElement = document.createElement('div');
                 tabElement.className = 'tab';
                 tabElement.dataset.tabId = doc.tabId;
+                tabElement.draggable = true;
                 tabElement.innerHTML = `
                     <span class="tab-title${doc.isModified ? ' modified' : ''}">${escapeHtml(generateTabTitle(doc.filePath))}</span>
                     <button class="tab-close" title="Close tab">×</button>
@@ -2841,6 +2925,9 @@ async function loadSavedState() {
                     e.stopPropagation();
                     closeTab('right', doc.tabId);
                 });
+                
+                // Add drag and drop functionality
+                setupTabDragAndDrop(tabElement, 'right');
                 
                 tabsContainer.appendChild(tabElement);
                 
