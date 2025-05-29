@@ -14,11 +14,38 @@ function showCustomTooltip(element, text) {
     customTooltip.style.left = rect.left + (rect.width / 2) + 'px';
     customTooltip.style.top = (rect.top - 10) + 'px';
     
-    // Center the tooltip horizontally
+    // Position tooltip with boundary checking
     setTimeout(() => {
         const tooltipRect = customTooltip.getBoundingClientRect();
-        customTooltip.style.left = (rect.left + (rect.width / 2) - (tooltipRect.width / 2)) + 'px';
-        customTooltip.style.top = (rect.top - tooltipRect.height - 8) + 'px';
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Calculate ideal position (centered above element)
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 8;
+        
+        // Check right boundary
+        if (left + tooltipRect.width > windowWidth - 5) {
+            left = windowWidth - tooltipRect.width - 5;
+        }
+        
+        // Check left boundary
+        if (left < 5) {
+            left = 5;
+        }
+        
+        // Check top boundary (if tooltip would go above window, show below instead)
+        if (top < 5) {
+            top = rect.bottom + 8;
+        }
+        
+        // Check bottom boundary (shouldn't happen often, but just in case)
+        if (top + tooltipRect.height > windowHeight - 5) {
+            top = windowHeight - tooltipRect.height - 5;
+        }
+        
+        customTooltip.style.left = left + 'px';
+        customTooltip.style.top = top + 'px';
         customTooltip.classList.add('visible');
     }, 0);
 }
