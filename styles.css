@@ -369,7 +369,7 @@ body {
 .pane-title {
     flex: 1;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     min-width: 0;
 }
@@ -388,17 +388,32 @@ body {
     white-space: nowrap;
 }
 
-.file-path:before {
-    content: '(';
+.file-path.editable {
+    cursor: text;
+    padding: 0 2px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    transition: all 0.2s;
+    line-height: 1;
+    display: inline-block;
 }
 
-.file-path:after {
-    content: ')';
+.file-path.editable:hover {
+    background: #3e3e42;
+    border-color: #4e4e52;
 }
 
-.file-path:empty:before,
-.file-path:empty:after {
-    content: '';
+.file-path.editable:focus {
+    outline: none;
+    background: #3e3e42;
+    border-color: #007acc;
+}
+
+.doc-type-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    filter: brightness(0) invert(1);
 }
 
 .pane-controls {

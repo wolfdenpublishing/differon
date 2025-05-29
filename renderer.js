@@ -96,6 +96,7 @@ class DocumentState {
         this.selectedParagraphs = new Set();
         this.tabId = 'tab-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         this.isModified = false;
+        this.pastedTimestamp = null; // Store timestamp for pasted documents
     }
 }
 
@@ -497,6 +498,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Convert all native tooltips to custom scalable tooltips
     convertAllTooltips();
     
+    // Icons don't need tooltips - removed due to visual conflicts
+    
     // Load configuration
     try {
         appConfig = await window.api.getConfig();
@@ -676,6 +679,7 @@ function loadContent(content, side) {
         doc.content = content;
         doc.filePath = filename;
         doc.isModified = false;
+        doc.pastedTimestamp = timestamp; // Store timestamp for tooltip
         updateTabTitle(side, doc.tabId, filename, false);
         displayDocument(side, doc);
         
@@ -1005,7 +1009,7 @@ function displayDocument(side, doc) {
 function displayFile(side, content, filePath) {
     const dropZone = document.getElementById(`${side}Drop`);
     const editor = document.getElementById(`${side}Editor`);
-    const pathElement = document.getElementById(`${side}Path`);
+    let pathElement = document.getElementById(`${side}Path`);
     const contentElement = document.getElementById(`${side}Content`);
     const paragraphNumbersElement = document.getElementById(`${side}ParagraphNumbers`);
     
@@ -1028,11 +1032,76 @@ function displayFile(side, content, filePath) {
         editor.style.display = 'none';
     }
     
+    // Update document name and icon
+    const iconElement = document.getElementById(`${side}DocIcon`);
+    const isPasted = doc.pastedTimestamp !== null; // Check for pastedTimestamp instead of filename
+    
+    // Remove all existing event listeners by cloning the path element
+    const newPathElement = pathElement.cloneNode(true);
+    pathElement.parentNode.replaceChild(newPathElement, pathElement);
+    pathElement = newPathElement;
+    
     pathElement.textContent = filePath;
-    // Use custom tooltip for file path
+    
+    // Set up icon
     if (filePath) {
-        pathElement.setAttribute('data-tooltip', filePath);
-        addCustomTooltip(pathElement, filePath);
+        iconElement.style.display = '';
+        if (isPasted) {
+            iconElement.src = 'icons/fluent--clipboard-text-ltr-16-regular.svg';
+            // Check if this is a renamed pasted document
+            const timestamp = doc.pastedTimestamp || (filePath.startsWith('Pasted at ') ? filePath.substring(10) : '');
+            
+            // Remove tooltip - visual conflict with tab titles
+            iconElement.removeAttribute('data-tooltip');
+            
+            // Make pasted document names editable
+            pathElement.classList.add('editable');
+            pathElement.contentEditable = 'true';
+            
+            // Save changes when editing finishes
+            pathElement.addEventListener('blur', () => {
+                const newName = pathElement.textContent.trim();
+                if (newName && newName !== doc.filePath) {
+                    doc.filePath = newName;
+                    updateTabTitle(side, doc.tabId, generateTabTitle(newName), doc.isModified);
+                    saveState();
+                } else if (!newName) {
+                    // Restore original name if empty
+                    pathElement.textContent = doc.filePath;
+                }
+            });
+            
+            // Handle Enter key to finish editing
+            pathElement.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    pathElement.blur();
+                }
+            });
+            
+            // Select all text when editing starts
+            pathElement.addEventListener('focus', () => {
+                const range = document.createRange();
+                range.selectNodeContents(pathElement);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            });
+        } else {
+            iconElement.src = 'icons/fluent--document-text-16-regular.svg';
+            // Remove tooltip - visual conflict with tab titles
+            iconElement.removeAttribute('data-tooltip');
+            
+            // File names are not editable
+            pathElement.classList.remove('editable');
+            pathElement.contentEditable = 'false';
+        }
+    } else {
+        iconElement.style.display = 'none';
+        pathElement.classList.remove('editable');
+        pathElement.contentEditable = 'false';
+        // Clear tooltip when no file
+        iconElement.removeAttribute('data-tooltip');
     }
 
     // Split content into paragraphs (handle different line endings)
@@ -2552,7 +2621,8 @@ function saveState() {
             scrollTop: doc.scrollTop,
             selectedParagraphs: Array.from(doc.selectedParagraphs),
             isActive: tabId === activeTab.left,
-            isModified: doc.isModified
+            isModified: doc.isModified,
+            pastedTimestamp: doc.pastedTimestamp
         })),
         right: Array.from(documents.right.entries()).map(([tabId, doc]) => ({
             tabId: tabId,
@@ -2561,7 +2631,8 @@ function saveState() {
             scrollTop: doc.scrollTop,
             selectedParagraphs: Array.from(doc.selectedParagraphs),
             isActive: tabId === activeTab.right,
-            isModified: doc.isModified
+            isModified: doc.isModified,
+            pastedTimestamp: doc.pastedTimestamp
         }))
     };
     
@@ -2700,6 +2771,7 @@ async function loadSavedState() {
                 doc.scrollTop = docData.scrollTop;
                 doc.selectedParagraphs = new Set(docData.selectedParagraphs || []);
                 doc.isModified = docData.isModified || false;
+                doc.pastedTimestamp = docData.pastedTimestamp || null;
                 
                 documents.left.set(doc.tabId, doc);
                 
@@ -2744,6 +2816,7 @@ async function loadSavedState() {
                 doc.scrollTop = docData.scrollTop;
                 doc.selectedParagraphs = new Set(docData.selectedParagraphs || []);
                 doc.isModified = docData.isModified || false;
+                doc.pastedTimestamp = docData.pastedTimestamp || null;
                 
                 documents.right.set(doc.tabId, doc);
                 
