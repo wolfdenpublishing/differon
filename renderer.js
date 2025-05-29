@@ -229,6 +229,16 @@ function moveTabToOtherSide(fromSide) {
         
         // Create new tab on the other side
         const toSide = fromSide === 'left' ? 'right' : 'left';
+        
+        // Check if the destination side has only a single empty tab
+        let singleEmptyTabId = null;
+        if (documents[toSide].size === 1) {
+            const [tabId, doc] = documents[toSide].entries().next().value;
+            if (!doc.content && !doc.filePath) {
+                singleEmptyTabId = tabId;
+            }
+        }
+        
         const newTabId = createNewTab(toSide, content, filePath);
         
         if (newTabId) {
@@ -256,6 +266,11 @@ function moveTabToOtherSide(fromSide) {
                     });
                 }, 0);
             }
+            
+            // If destination had a single empty tab, close it
+            if (singleEmptyTabId) {
+                closeTab(toSide, singleEmptyTabId);
+            }
         }
     } else {
         // Multiple tabs exist, can safely move
@@ -275,6 +290,16 @@ function moveTabToOtherSide(fromSide) {
         
         // Create new tab on the other side
         const toSide = fromSide === 'left' ? 'right' : 'left';
+        
+        // Check if the destination side has only a single empty tab
+        let singleEmptyTabId = null;
+        if (documents[toSide].size === 1) {
+            const [tabId, doc] = documents[toSide].entries().next().value;
+            if (!doc.content && !doc.filePath) {
+                singleEmptyTabId = tabId;
+            }
+        }
+        
         const newTabId = createNewTab(toSide, content, filePath);
         
         if (newTabId) {
@@ -305,6 +330,11 @@ function moveTabToOtherSide(fromSide) {
             
             // Close the original tab
             closeTab(fromSide, currentTabId);
+            
+            // If destination had a single empty tab, close it
+            if (singleEmptyTabId) {
+                closeTab(toSide, singleEmptyTabId);
+            }
         }
     }
     
