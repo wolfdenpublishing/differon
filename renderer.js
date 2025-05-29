@@ -1081,8 +1081,86 @@ function displayFile(side, content, filePath) {
         // Add checkbox event listeners for immediate background coloring
         const checkboxes = paragraphNumbersElement.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
+            // Store shift key state on click for use in change handler
+            let wasShiftPressed = false;
+            
+            // Capture shift key state on click event
+            checkbox.addEventListener('click', (e) => {
+                wasShiftPressed = e.shiftKey;
+            });
+            
+            // Handle checkbox state change
+            checkbox.addEventListener('change', (e) => {
+                if (wasShiftPressed && checkbox.checked) {
+                    // Shift+Click: Select range between this and nearest selected paragraphs
+                    const currentIndex = parseInt(checkbox.dataset.paragraph);
+                    const allCheckboxes = Array.from(paragraphNumbersElement.querySelectorAll('input[type="checkbox"]'));
+                    
+                    // Find all currently checked paragraphs (excluding the current one)
+                    const checkedIndices = [];
+                    allCheckboxes.forEach(cb => {
+                        const idx = parseInt(cb.dataset.paragraph);
+                        if (cb.checked && idx !== currentIndex) {
+                            checkedIndices.push(idx);
+                        }
+                    });
+                    
+                    if (checkedIndices.length > 0) {
+                        // Search backward for nearest selected paragraph
+                        let backwardNearest = -1;
+                        for (let i = currentIndex - 1; i >= 0; i--) {
+                            if (checkedIndices.includes(i)) {
+                                backwardNearest = i;
+                                break;
+                            }
+                        }
+                        
+                        // Search forward for nearest selected paragraph
+                        let forwardNearest = -1;
+                        const maxIndex = allCheckboxes.length - 1;
+                        for (let i = currentIndex + 1; i <= maxIndex; i++) {
+                            if (checkedIndices.includes(i)) {
+                                forwardNearest = i;
+                                break;
+                            }
+                        }
+                        
+                        // Select all paragraphs in the backward range
+                        if (backwardNearest >= 0) {
+                            for (let i = backwardNearest + 1; i < currentIndex; i++) {
+                                const cb = document.getElementById(`${side}-paragraph-${i}`);
+                                if (cb) cb.checked = true;
+                            }
+                        }
+                        
+                        // Select all paragraphs in the forward range
+                        if (forwardNearest >= 0) {
+                            for (let i = currentIndex + 1; i < forwardNearest; i++) {
+                                const cb = document.getElementById(`${side}-paragraph-${i}`);
+                                if (cb) cb.checked = true;
+                            }
+                        }
+                    }
+                }
+                
+                // Reset shift state
+                wasShiftPressed = false;
+                
                 // Always apply backgrounds based on checkbox state
+                applyParagraphBackgrounds();
+            });
+            
+            // Right-click for exclusive selection
+            checkbox.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                
+                // Deselect all other checkboxes on this side
+                const allCheckboxes = paragraphNumbersElement.querySelectorAll('input[type="checkbox"]');
+                allCheckboxes.forEach(cb => {
+                    cb.checked = (cb === checkbox);
+                });
+                
+                // Apply backgrounds based on new state
                 applyParagraphBackgrounds();
             });
         });
