@@ -14,26 +14,31 @@
   "colors": {
     "left": {
       "defaultBgHue": 0,
-      "defaultBgIntensity": 20,
+      "defaultBgIntensity": 15,
       "defaultHlHue": 0,
       "defaultHlIntensity": 40
     },
     "right": {
       "defaultBgHue": 120,
-      "defaultBgIntensity": 20,
+      "defaultBgIntensity": 15,
       "defaultHlHue": 120,
       "defaultHlIntensity": 40
     },
-    "bgIntensityMin": 5,
+    "bgIntensityMin": 0,
     "bgIntensityMax": 40,
-    "hlIntensityMin": 20,
+    "hlIntensityMin": 10,
     "hlIntensityMax": 60
   },
-  "fuzzyMatching": {
+  "fuzzySentenceMatching": {
     "minMatchPercent": 10,
     "maxMatchPercent": 100,
-    "defaultFuzzLevel": 0.50,
+    "defaultFuzzLevel": 0.00,
     "wordLookAheadLimit": 5
+  },
+  "fuzzyParagraphMatching": {
+    "minMatchPercent": 30,
+    "maxMatchPercent": 100,
+    "defaultFuzzLevel": 0.00
   },
   "ui": {
     "statusBarUpdateIntervalMs": 60000,
@@ -43,6 +48,9 @@
     "tooltipDisplayDurationMs": 1500
   },
   "toolbar": {
-    "defaultDiffMode": "sentence"
+    "defaultParagraphAlgorithm": "thomas",
+    "defaultSentenceAlgorithm": "thomas",
+    "defaultParagraphMatchingEnabled": true,
+    "defaultSentenceMatchingEnabled": true
   }
 }

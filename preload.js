@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('api', {
   diffParagraph: (left, right) => ipcRenderer.invoke('diff-paragraph', left, right),
   diffPatience: (left, right, leftParagraphs, rightParagraphs, leftFull, rightFull) => ipcRenderer.invoke('diff-patience', left, right, leftParagraphs, rightParagraphs, leftFull, rightFull),
   diffPatienceFuzzy: (left, right, leftParagraphs, rightParagraphs, leftFull, rightFull, threshold) => ipcRenderer.invoke('diff-patience-fuzzy', left, right, leftParagraphs, rightParagraphs, leftFull, rightFull, threshold),
+  // Paragraph matching with algorithm support
+  matchParagraphsThomas: (left, right, threshold) => ipcRenderer.invoke('match-paragraphs-thomas', left, right, threshold),
+  matchParagraphsPatience: (left, right, threshold) => ipcRenderer.invoke('match-paragraphs-patience', left, right, threshold),
   // Clipboard functionality
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   appendToClipboard: (text) => ipcRenderer.invoke('append-to-clipboard', text),

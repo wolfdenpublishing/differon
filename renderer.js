@@ -23,9 +23,17 @@ let activeTab = {
 
 // Global settings and state
 let currentZoom = 1.0;
-let algorithm = 'sentence';  // 'sentence' or 'patience'
-let fuzziness = 0.0;  // 0.0-1.0, where 0.0 = exact matching
 let appConfig = null;
+
+// Paragraph matching settings
+let paragraphMatchingEnabled = true;
+let paragraphAlgorithm = 'thomas';  // 'thomas' or 'patience'
+let paragraphFuzziness = 0.0;  // 0.0-1.0
+
+// Sentence matching settings
+let sentenceMatchingEnabled = true;
+let sentenceAlgorithm = 'thomas';  // 'thomas', 'levenshtein', 'character'
+let sentenceFuzziness = 0.0;  // 0.0-1.0
 
 // Store resize observers to prevent memory leaks
 const resizeObservers = new Map();
@@ -142,7 +150,8 @@ function switchToTab(side, tabId) {
         const leftDoc = getActiveDocument('left');
         const rightDoc = getActiveDocument('right');
         if (leftDoc && leftDoc.content && rightDoc && rightDoc.content) {
-            runParagraphDiff();
+            // Automatic paragraph diff removed - now handled by Compare button
+            // runParagraphDiff();
         }
     }
     
@@ -345,7 +354,8 @@ function moveTabToOtherSide(fromSide) {
     const leftDoc = getActiveDocument('left');
     const rightDoc = getActiveDocument('right');
     if (leftDoc && leftDoc.content && rightDoc && rightDoc.content) {
-        runParagraphDiff();
+        // Automatic paragraph diff removed - now handled by Compare button
+        // runParagraphDiff();
     }
     
     saveState();
@@ -401,12 +411,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.warn('Failed to load config, using defaults');
         appConfig = {
-            fuzzyMatching: {
+            fuzzySentenceMatching: {
                 minMatchPercent: 10,
+                maxMatchPercent: 100
+            },
+            fuzzyParagraphMatching: {
+                minMatchPercent: 30,
                 maxMatchPercent: 100
             }
         };
     }
+    
+    // Apply min/max values from config to intensity sliders
+    const bgIntensityMin = appConfig?.colors?.bgIntensityMin ?? 5;
+    const bgIntensityMax = appConfig?.colors?.bgIntensityMax ?? 40;
+    const hlIntensityMin = appConfig?.colors?.hlIntensityMin ?? 20;
+    const hlIntensityMax = appConfig?.colors?.hlIntensityMax ?? 60;
+    
+    // Set min/max for background intensity sliders
+    document.getElementById('leftBgIntensity').min = bgIntensityMin;
+    document.getElementById('leftBgIntensity').max = bgIntensityMax;
+    document.getElementById('rightBgIntensity').min = bgIntensityMin;
+    document.getElementById('rightBgIntensity').max = bgIntensityMax;
+    
+    // Set min/max for highlight intensity sliders
+    document.getElementById('leftHlIntensity').min = hlIntensityMin;
+    document.getElementById('leftHlIntensity').max = hlIntensityMax;
+    document.getElementById('rightHlIntensity').min = hlIntensityMin;
+    document.getElementById('rightHlIntensity').max = hlIntensityMax;
     
     // Set up all UI components first
     setupDropZones();
@@ -525,7 +557,8 @@ async function loadFile(filePath, side) {
             const leftDoc = getActiveDocument('left');
             const rightDoc = getActiveDocument('right');
             if (leftDoc && leftDoc.content && rightDoc && rightDoc.content) {
-                await runParagraphDiff();
+                // Automatic paragraph diff removed - now handled by Compare button
+                // await runParagraphDiff();
             }
             
             saveState();
@@ -558,7 +591,8 @@ function loadContent(content, side) {
         const leftDoc = getActiveDocument('left');
         const rightDoc = getActiveDocument('right');
         if (leftDoc && leftDoc.content && rightDoc && rightDoc.content) {
-            runParagraphDiff();
+            // Automatic paragraph diff removed - now handled by Compare button
+            // runParagraphDiff();
         }
         
         saveState();
@@ -828,14 +862,21 @@ function clearParagraphMarkers() {
         el.classList.remove('paragraph-changed', 'paragraph-deleted', 'paragraph-added');
     });
     document.querySelectorAll('.paragraph-matched').forEach(el => {
-        el.classList.remove('paragraph-matched');
+        el.classList.remove('paragraph-matched', 'paragraph-fuzzy-matched');
         el.style.cursor = '';
         el.title = '';
+        // Remove the alpha CSS variable for fuzzy matches
+        el.style.removeProperty('--paragraph-match-alpha');
         // Remove all click event listeners
         const newEl = el.cloneNode(true);
         if (el.parentNode) {
             el.parentNode.replaceChild(newEl, el);
         }
+    });
+    // Also clear fuzzy matched paragraphs that might not have paragraph-matched class
+    document.querySelectorAll('.paragraph-fuzzy-matched').forEach(el => {
+        el.classList.remove('paragraph-fuzzy-matched');
+        el.style.removeProperty('--paragraph-match-alpha');
     });
     paragraphDiffResults = null;
     matchedParagraphs.leftToRight.clear();
@@ -860,6 +901,9 @@ function displayDocument(side, doc) {
             checkbox.checked = true;
         }
     });
+    
+    // Apply paragraph backgrounds after restoring checkboxes
+    applyParagraphBackgrounds();
 }
 
 function displayFile(side, content, filePath) {
@@ -933,6 +977,15 @@ function displayFile(side, content, filePath) {
     // After rendering, sync paragraph number heights with content paragraph heights
     requestAnimationFrame(() => {
         syncParagraphHeights(side);
+        
+        // Add checkbox event listeners for immediate background coloring
+        const checkboxes = paragraphNumbersElement.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                // Always apply backgrounds based on checkbox state
+                applyParagraphBackgrounds();
+            });
+        });
     });
 
     // Sync scrolling between paragraph numbers and content
@@ -985,11 +1038,17 @@ function setupSelectAllControls() {
     document.getElementById('leftSelectAll').addEventListener('change', (e) => {
         const checkboxes = document.querySelectorAll('#leftParagraphNumbers input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = e.target.checked);
+        
+        // Always apply backgrounds based on checkbox state
+        applyParagraphBackgrounds();
     });
 
     document.getElementById('rightSelectAll').addEventListener('change', (e) => {
         const checkboxes = document.querySelectorAll('#rightParagraphNumbers input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = e.target.checked);
+        
+        // Always apply backgrounds based on checkbox state
+        applyParagraphBackgrounds();
     });
 }
 
@@ -1031,10 +1090,20 @@ function clearAll() {
     // Clear highlighting
     clearComparison();
     
-    // Uncheck all checkboxes
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    // Clear paragraph markers (change bars)
+    clearParagraphMarkers();
+    
+    // Uncheck only paragraph selection checkboxes (not algorithm checkboxes)
+    document.querySelectorAll('.paragraph-number input[type="checkbox"]').forEach(cb => {
         cb.checked = false;
     });
+    
+    // Also uncheck select all checkboxes
+    document.getElementById('leftSelectAll').checked = false;
+    document.getElementById('rightSelectAll').checked = false;
+    
+    // Remove paragraph backgrounds
+    removeParagraphBackgrounds();
 }
 
 async function performComparison() {
@@ -1055,8 +1124,11 @@ async function performComparison() {
         return;
     }
 
-    // Clear previous comparison highlights
+    // Clear previous comparison highlights (but keep backgrounds)
     clearComparison();
+    
+    // Reapply paragraph backgrounds after clearing
+    applyParagraphBackgrounds();
     
     // Initialize current sentences and fuzzy pairs
     currentSentences = { left: new Map(), right: new Map() };
@@ -1070,61 +1142,96 @@ async function performComparison() {
     const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
 
     try {
-        // Perform diff based on selected algorithm and fuzziness
-        let diff;
+        let paragraphResult = null;
+        let sentenceResult = null;
         
-        // Calculate match threshold from fuzziness level
-        const minMatch = appConfig?.fuzzyMatching?.minMatchPercent || 10;
-        const maxMatch = appConfig?.fuzzyMatching?.maxMatchPercent || 100;
-        // fuzziness 0.00 = maxMatch%, fuzziness 1.00 = minMatch%
-        const matchThreshold = (maxMatch - (fuzziness * (maxMatch - minMatch))) / 100;
-        
-        switch (algorithm) {
-            case 'sentence':
-                if (fuzziness < 0.01) {  // Use threshold to handle floating point precision
-                    // Exact matching (old "Whole Sentence" mode)
-                    const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content);
-                    diff = result.diff;
-                    matchedSentences = result.matchedSentences;
-                    currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
-                    fuzzyMatchedPairs = [];
-                } else {
-                    // Fuzzy matching (old "Fuzzy Sentence" mode)
-                    const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content, matchThreshold);
-                    diff = fuzzyResult.diff;
-                    matchedSentences = fuzzyResult.matchedSentences;
-                    currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
-                    fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
-                }
-                break;
-            case 'patience':
-                if (fuzziness < 0.01) {  // Use threshold to handle floating point precision
-                    // Patience with exact matching
-                    const result = await window.api.diffPatience(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content);
-                    diff = result.diff;
-                    matchedSentences = result.matchedSentences;
-                    currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
-                    fuzzyMatchedPairs = [];
-                } else {
-                    // Patience with fuzzy matching
-                    const fuzzyResult = await window.api.diffPatienceFuzzy(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content, matchThreshold);
-                    diff = fuzzyResult.diff;
-                    matchedSentences = fuzzyResult.matchedSentences;
-                    currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
-                    fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
-                }
-                break;
-            default:
-                console.error('Invalid algorithm:', algorithm);
-                return;
+        // Step 1: Run paragraph-level matching if enabled
+        if (paragraphMatchingEnabled) {
+            const paragraphMinMatch = appConfig?.fuzzyParagraphMatching?.minMatchPercent || 30;
+            const paragraphMaxMatch = appConfig?.fuzzyParagraphMatching?.maxMatchPercent || 100;
+            const paragraphMatchThreshold = (paragraphMaxMatch - (paragraphFuzziness * (paragraphMaxMatch - paragraphMinMatch))) / 100;
+            
+            // Call appropriate paragraph matching API
+            if (paragraphAlgorithm === 'thomas') {
+                paragraphResult = await window.api.matchParagraphsThomas(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
+            } else if (paragraphAlgorithm === 'patience') {
+                paragraphResult = await window.api.matchParagraphsPatience(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
+            }
+            
+            // Apply change bars based on paragraph result
+            applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, rightSelectedParagraphs, paragraphFuzziness > 0.01);
         }
-
-        // Apply highlighting with the enhanced diff results
-        applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagraphs);
+        
+        // Step 2: Run sentence-level matching if enabled
+        if (sentenceMatchingEnabled) {
+            const sentenceMinMatch = appConfig?.fuzzySentenceMatching?.minMatchPercent || 10;
+            const sentenceMaxMatch = appConfig?.fuzzySentenceMatching?.maxMatchPercent || 100;
+            const sentenceMatchThreshold = (sentenceMaxMatch - (sentenceFuzziness * (sentenceMaxMatch - sentenceMinMatch))) / 100;
+            
+            let diff;
+            
+            // Determine which paragraphs to process at sentence level
+            let paragraphsToProcess = {
+                left: leftSelectedParagraphs,
+                right: rightSelectedParagraphs
+            };
+            
+            if (paragraphMatchingEnabled && paragraphResult) {
+                // Filter out exact matched paragraphs from sentence processing
+                const exactMatchedLeft = new Set();
+                const exactMatchedRight = new Set();
+                
+                // Collect all exact matched paragraph indices
+                if (paragraphResult.exactMatches) {
+                    paragraphResult.exactMatches.forEach(match => {
+                        exactMatchedLeft.add(match.left);
+                        exactMatchedRight.add(match.right);
+                    });
+                }
+                
+                // Filter out exact matched paragraphs
+                paragraphsToProcess.left = leftSelectedParagraphs.filter(idx => !exactMatchedLeft.has(idx));
+                paragraphsToProcess.right = rightSelectedParagraphs.filter(idx => !exactMatchedRight.has(idx));
+            }
+            
+            // Call sentence matching based on sentenceAlgorithm
+            switch (sentenceAlgorithm) {
+                case 'thomas':
+                    if (sentenceFuzziness < 0.01) {
+                        const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content);
+                        diff = result.diff;
+                        matchedSentences = result.matchedSentences;
+                        currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
+                        fuzzyMatchedPairs = [];
+                    } else {
+                        const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content, sentenceMatchThreshold);
+                        diff = fuzzyResult.diff;
+                        matchedSentences = fuzzyResult.matchedSentences;
+                        currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
+                        fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
+                    }
+                    break;
+                case 'levenshtein':
+                    // TODO: Implement when available
+                    alert('Levenshtein algorithm not yet implemented');
+                    return;
+                case 'character':
+                    // TODO: Implement when available
+                    alert('Character algorithm not yet implemented');
+                    return;
+                default:
+                    console.error('Invalid sentence algorithm:', sentenceAlgorithm);
+                    return;
+            }
+            
+            // Apply sentence-level highlighting
+            applyDiffHighlighting(diff, paragraphsToProcess.left, paragraphsToProcess.right);
+        }
+        
     } catch (error) {
         console.error('Error performing comparison:', error);
-        console.error('Algorithm:', algorithm);
-        console.error('Fuzziness:', fuzziness);
+        console.error('Paragraph algorithm:', paragraphAlgorithm, 'enabled:', paragraphMatchingEnabled);
+        console.error('Sentence algorithm:', sentenceAlgorithm, 'enabled:', sentenceMatchingEnabled);
         console.error('Left paragraphs selected:', leftSelectedParagraphs.length);
         console.error('Right paragraphs selected:', rightSelectedParagraphs.length);
         alert(`Error performing comparison: ${error.message}\n\nPlease check the console for more details.`);
@@ -1136,6 +1243,184 @@ function getSelectedParagraphs(side) {
     return Array.from(checkboxes).map(cb => parseInt(cb.dataset.paragraph));
 }
 
+function applyParagraphBackgrounds() {
+    // Apply background colors to all checked paragraphs
+    ['left', 'right'].forEach(side => {
+        const checkboxes = document.querySelectorAll(`#${side}ParagraphNumbers .paragraph-number input[type="checkbox"]`);
+        checkboxes.forEach(cb => {
+            const paragraphNum = parseInt(cb.dataset.paragraph);
+            const paragraphElement = document.getElementById(`${side}-content-paragraph-${paragraphNum}`);
+            if (paragraphElement) {
+                if (cb.checked) {
+                    paragraphElement.classList.add(side === 'left' ? 'deleted' : 'added');
+                } else {
+                    paragraphElement.classList.remove('deleted', 'added');
+                }
+            }
+        });
+    });
+}
+
+function removeParagraphBackgrounds() {
+    // Remove all paragraph background colors
+    document.querySelectorAll('.paragraph').forEach(paragraph => {
+        paragraph.classList.remove('deleted', 'added');
+    });
+}
+
+function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, rightSelectedParagraphs, isFuzzy = false) {
+    // Clear existing change bars
+    clearParagraphMarkers();
+    
+    if (!paragraphResult) return;
+    
+    // Process exact matches
+    paragraphResult.exactMatches.forEach(match => {
+        // Store the mapping
+        matchedParagraphs.leftToRight.set(match.left, match.right);
+        matchedParagraphs.rightToLeft.set(match.right, match.left);
+        
+        // Mark as matched if included in selection
+        if (leftSelectedParagraphs.includes(match.left)) {
+            const leftElement = document.getElementById(`left-content-paragraph-${match.left}`);
+            if (leftElement) {
+                leftElement.classList.add('paragraph-matched');
+                // Add click handler for syncing
+                leftElement.style.cursor = 'pointer';
+                leftElement.title = 'Click to sync with matching paragraph';
+                leftElement.dataset.paragraphIndex = match.left;
+                leftElement.dataset.matchedIndex = match.right;
+                
+                // Remove any existing click handlers first
+                const newLeftElement = leftElement.cloneNode(true);
+                leftElement.parentNode.replaceChild(newLeftElement, leftElement);
+                
+                newLeftElement.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const idx = parseInt(this.dataset.paragraphIndex);
+                    if (!isNaN(idx)) {
+                        scrollToMatchingParagraph('left', idx);
+                    }
+                }, true);
+            }
+        }
+        
+        if (rightSelectedParagraphs.includes(match.right)) {
+            const rightElement = document.getElementById(`right-content-paragraph-${match.right}`);
+            if (rightElement) {
+                rightElement.classList.add('paragraph-matched');
+                // Add click handler for syncing
+                rightElement.style.cursor = 'pointer';
+                rightElement.title = 'Click to sync with matching paragraph';
+                rightElement.dataset.paragraphIndex = match.right;
+                rightElement.dataset.matchedIndex = match.left;
+                
+                // Remove any existing click handlers first
+                const newRightElement = rightElement.cloneNode(true);
+                rightElement.parentNode.replaceChild(newRightElement, rightElement);
+                
+                newRightElement.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const idx = parseInt(this.dataset.paragraphIndex);
+                    if (!isNaN(idx)) {
+                        scrollToMatchingParagraph('right', idx);
+                    }
+                }, true);
+            }
+        }
+    });
+    
+    // Process fuzzy matches with variable alpha
+    paragraphResult.fuzzyMatches.forEach(match => {
+        // Store the mapping
+        matchedParagraphs.leftToRight.set(match.left, match.right);
+        matchedParagraphs.rightToLeft.set(match.right, match.left);
+        
+        // Calculate alpha based on similarity
+        const alpha = match.similarity;
+        
+        // Mark as fuzzy matched if included in selection
+        if (leftSelectedParagraphs.includes(match.left)) {
+            const leftElement = document.getElementById(`left-content-paragraph-${match.left}`);
+            if (leftElement) {
+                leftElement.classList.add('paragraph-matched', 'paragraph-fuzzy-matched', 'paragraph-changed', 'paragraph-deleted');
+                // Apply variable alpha to change bar
+                leftElement.style.setProperty('--paragraph-match-alpha', alpha);
+                
+                // Only make clickable if sentence matching is disabled
+                if (!sentenceMatchingEnabled) {
+                    leftElement.style.cursor = 'pointer';
+                    leftElement.title = `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`;
+                    leftElement.dataset.paragraphIndex = match.left;
+                    leftElement.dataset.matchedIndex = match.right;
+                    
+                    const newLeftElement = leftElement.cloneNode(true);
+                    leftElement.parentNode.replaceChild(newLeftElement, leftElement);
+                    
+                    newLeftElement.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const idx = parseInt(this.dataset.paragraphIndex);
+                        if (!isNaN(idx)) {
+                            scrollToMatchingParagraph('left', idx);
+                        }
+                    }, true);
+                }
+            }
+        }
+        
+        if (rightSelectedParagraphs.includes(match.right)) {
+            const rightElement = document.getElementById(`right-content-paragraph-${match.right}`);
+            if (rightElement) {
+                rightElement.classList.add('paragraph-matched', 'paragraph-fuzzy-matched', 'paragraph-changed', 'paragraph-added');
+                // Apply variable alpha to change bar
+                rightElement.style.setProperty('--paragraph-match-alpha', alpha);
+                
+                // Only make clickable if sentence matching is disabled
+                if (!sentenceMatchingEnabled) {
+                    rightElement.style.cursor = 'pointer';
+                    rightElement.title = `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`;
+                    rightElement.dataset.paragraphIndex = match.right;
+                    rightElement.dataset.matchedIndex = match.left;
+                    
+                    const newRightElement = rightElement.cloneNode(true);
+                    rightElement.parentNode.replaceChild(newRightElement, rightElement);
+                    
+                    newRightElement.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const idx = parseInt(this.dataset.paragraphIndex);
+                        if (!isNaN(idx)) {
+                            scrollToMatchingParagraph('right', idx);
+                        }
+                    }, true);
+                }
+            }
+        }
+    });
+    
+    // Mark unmatched paragraphs
+    paragraphResult.unmatchedLeft.forEach(idx => {
+        if (leftSelectedParagraphs.includes(idx)) {
+            const element = document.getElementById(`left-content-paragraph-${idx}`);
+            if (element) {
+                element.classList.add('paragraph-changed', 'paragraph-deleted');
+            }
+        }
+    });
+    
+    paragraphResult.unmatchedRight.forEach(idx => {
+        if (rightSelectedParagraphs.includes(idx)) {
+            const element = document.getElementById(`right-content-paragraph-${idx}`);
+            if (element) {
+                element.classList.add('paragraph-changed', 'paragraph-added');
+            }
+        }
+    });
+}
+
 function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagraphs) {
     const leftDoc = getActiveDocument('left');
     const rightDoc = getActiveDocument('right');
@@ -1144,6 +1429,11 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
     
     const leftParagraphs = leftDoc.content.split(/\r\n|\r|\n/);
     const rightParagraphs = rightDoc.content.split(/\r\n|\r|\n/);
+    
+    // Get the current sentence algorithm for proper CSS class naming
+    const algorithm = sentenceAlgorithm === 'thomas' ? 'sentence' : 
+                     sentenceAlgorithm === 'patience' ? 'patience' : 
+                     sentenceAlgorithm;
     
     // Build a map of selected paragraph content and their starting positions
     const leftParagraphMap = new Map();
@@ -1788,67 +2078,138 @@ function setupColorControls() {
 
     // Reset buttons
     document.getElementById('leftColorReset').addEventListener('click', () => {
-        // Reset left colors to defaults
-        document.getElementById('leftBgColor').value = 0;
-        document.getElementById('leftBgIntensity').value = 20;
-        document.getElementById('leftHlColor').value = 0;
-        document.getElementById('leftHlIntensity').value = 40;
+        // Reset left colors to defaults from config
+        const defaultBgHue = appConfig?.colors?.left?.defaultBgHue ?? 0;
+        const defaultBgIntensity = appConfig?.colors?.left?.defaultBgIntensity ?? 20;
+        const defaultHlHue = appConfig?.colors?.left?.defaultHlHue ?? 0;
+        const defaultHlIntensity = appConfig?.colors?.left?.defaultHlIntensity ?? 40;
+        
+        document.getElementById('leftBgColor').value = defaultBgHue;
+        document.getElementById('leftBgIntensity').value = defaultBgIntensity;
+        document.getElementById('leftHlColor').value = defaultHlHue;
+        document.getElementById('leftHlIntensity').value = defaultHlIntensity;
         
         // Apply the defaults
-        document.documentElement.style.setProperty('--left-bg-hue', 0);
-        document.documentElement.style.setProperty('--left-bg-intensity', 0.2);
-        document.documentElement.style.setProperty('--left-hl-hue', 0);
-        document.documentElement.style.setProperty('--left-hl-intensity', 0.4);
+        document.documentElement.style.setProperty('--left-bg-hue', defaultBgHue);
+        document.documentElement.style.setProperty('--left-bg-intensity', defaultBgIntensity / 100);
+        document.documentElement.style.setProperty('--left-hl-hue', defaultHlHue);
+        document.documentElement.style.setProperty('--left-hl-intensity', defaultHlIntensity / 100);
         
         saveState();
     });
 
     document.getElementById('rightColorReset').addEventListener('click', () => {
-        // Reset right colors to defaults
-        document.getElementById('rightBgColor').value = 120;
-        document.getElementById('rightBgIntensity').value = 20;
-        document.getElementById('rightHlColor').value = 120;
-        document.getElementById('rightHlIntensity').value = 40;
+        // Reset right colors to defaults from config
+        const defaultBgHue = appConfig?.colors?.right?.defaultBgHue ?? 120;
+        const defaultBgIntensity = appConfig?.colors?.right?.defaultBgIntensity ?? 20;
+        const defaultHlHue = appConfig?.colors?.right?.defaultHlHue ?? 120;
+        const defaultHlIntensity = appConfig?.colors?.right?.defaultHlIntensity ?? 40;
+        
+        document.getElementById('rightBgColor').value = defaultBgHue;
+        document.getElementById('rightBgIntensity').value = defaultBgIntensity;
+        document.getElementById('rightHlColor').value = defaultHlHue;
+        document.getElementById('rightHlIntensity').value = defaultHlIntensity;
         
         // Apply the defaults
-        document.documentElement.style.setProperty('--right-bg-hue', 120);
-        document.documentElement.style.setProperty('--right-bg-intensity', 0.2);
-        document.documentElement.style.setProperty('--right-hl-hue', 120);
-        document.documentElement.style.setProperty('--right-hl-intensity', 0.4);
+        document.documentElement.style.setProperty('--right-bg-hue', defaultBgHue);
+        document.documentElement.style.setProperty('--right-bg-intensity', defaultBgIntensity / 100);
+        document.documentElement.style.setProperty('--right-hl-hue', defaultHlHue);
+        document.documentElement.style.setProperty('--right-hl-intensity', defaultHlIntensity / 100);
         
         saveState();
     });
 }
 
 function setupDiffModeControls() {
-    const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
-    const fuzzSlider = document.getElementById('fuzzSlider');
-    const fuzzValue = document.getElementById('fuzzValue');
+    // Paragraph controls
+    const paragraphCheckbox = document.getElementById('paragraphEnabled');
+    const paragraphAlgorithmRadios = document.querySelectorAll('input[name="paragraphAlgorithm"]');
+    const paragraphFuzzSlider = document.getElementById('paragraphFuzzSlider');
+    const paragraphFuzzValue = document.getElementById('paragraphFuzzValue');
     
-    // Set up algorithm selection
-    algorithmRadios.forEach(radio => {
+    // Sentence controls
+    const sentenceCheckbox = document.getElementById('sentenceEnabled');
+    const sentenceAlgorithmRadios = document.querySelectorAll('input[name="sentenceAlgorithm"]');
+    const sentenceFuzzSlider = document.getElementById('sentenceFuzzSlider');
+    const sentenceFuzzValue = document.getElementById('sentenceFuzzValue');
+    
+    // Compare button
+    const compareBtn = document.getElementById('compareBtn');
+    
+    // Update compare button state
+    function updateCompareButtonState() {
+        compareBtn.disabled = !paragraphMatchingEnabled && !sentenceMatchingEnabled;
+    }
+    
+    // Paragraph checkbox
+    paragraphCheckbox.addEventListener('change', (e) => {
+        paragraphMatchingEnabled = e.target.checked;
+        updateCompareButtonState();
+        
+        // Don't change backgrounds when toggling paragraph matching
+        // Backgrounds should only depend on checkbox state
+        
+        saveState();
+    });
+    
+    // Sentence checkbox
+    sentenceCheckbox.addEventListener('change', (e) => {
+        sentenceMatchingEnabled = e.target.checked;
+        updateCompareButtonState();
+        saveState();
+    });
+    
+    // Paragraph algorithm selection
+    paragraphAlgorithmRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
-            algorithm = e.target.value;
+            paragraphAlgorithm = e.target.value;
             
-            // If there's an active comparison, clear it
-            if (document.querySelector('.paragraph.deleted, .paragraph.added')) {
-                clearComparison();
-            }
+            // Clear comparison but preserve backgrounds
+            clearComparison();
+            applyParagraphBackgrounds();
+            
             saveState();
         });
     });
     
-    // Set up fuzziness slider
-    fuzzSlider.addEventListener('input', (e) => {
-        const sliderValue = parseInt(e.target.value); // Raw slider value (0-10)
-        const convertedValue = sliderValue / 10; // Convert to 0.0-1.0
-        fuzziness = convertedValue;
-        fuzzValue.textContent = convertedValue.toFixed(1);
-        
-        // If there's an active comparison and fuzziness changed, clear it to force re-comparison
-        if (document.querySelector('.paragraph.deleted, .paragraph.added')) {
+    // Sentence algorithm selection
+    sentenceAlgorithmRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            sentenceAlgorithm = e.target.value;
+            
+            // Clear comparison but preserve backgrounds
             clearComparison();
-        }
+            applyParagraphBackgrounds();
+            
+            saveState();
+        });
+    });
+    
+    // Paragraph fuzziness slider
+    paragraphFuzzSlider.addEventListener('input', (e) => {
+        const sliderValue = parseInt(e.target.value);
+        const convertedValue = sliderValue / 10;
+        paragraphFuzziness = convertedValue;
+        paragraphFuzzValue.textContent = convertedValue.toFixed(1);
+        
+        // Clear comparison but preserve backgrounds
+        clearComparison();
+        applyParagraphBackgrounds();
+        
+        saveState();
+    });
+    
+    // Sentence fuzziness slider
+    sentenceFuzzSlider.addEventListener('input', (e) => {
+        const sliderValue = parseInt(e.target.value);
+        const convertedValue = sliderValue / 10;
+        sentenceFuzziness = convertedValue;
+        sentenceFuzzValue.textContent = convertedValue.toFixed(1);
+        
+        // Clear comparison but preserve backgrounds
+        clearComparison();
+        applyParagraphBackgrounds();
+        
         saveState();
     });
 }
@@ -2021,8 +2382,16 @@ function saveState() {
     const state = {
         documents: documentsArray,
         activeTab: activeTab,
-        algorithm: algorithm,
-        fuzziness: fuzziness,
+        // New algorithm settings
+        paragraphMatchingEnabled: paragraphMatchingEnabled,
+        paragraphAlgorithm: paragraphAlgorithm,
+        paragraphFuzziness: paragraphFuzziness,
+        sentenceMatchingEnabled: sentenceMatchingEnabled,
+        sentenceAlgorithm: sentenceAlgorithm,
+        sentenceFuzziness: sentenceFuzziness,
+        // Legacy fields for backward compatibility
+        algorithm: sentenceAlgorithm === 'thomas' ? 'sentence' : 'patience',
+        fuzziness: sentenceFuzziness,
         zoom: currentZoom,
         colors: {
             leftBgHue: document.getElementById('leftBgColor').value,
@@ -2049,37 +2418,54 @@ async function loadSavedState() {
     document.getElementById('leftTabsContainer').innerHTML = '';
     document.getElementById('rightTabsContainer').innerHTML = '';
 
-    // Restore algorithm and fuzziness with backwards compatibility
-    if (state.algorithm) {
+    // Restore algorithm settings with backwards compatibility
+    if (state.paragraphMatchingEnabled !== undefined) {
         // New state format
-        algorithm = state.algorithm;
-        fuzziness = state.fuzziness || 0.0;
+        paragraphMatchingEnabled = state.paragraphMatchingEnabled;
+        paragraphAlgorithm = state.paragraphAlgorithm || 'thomas';
+        paragraphFuzziness = state.paragraphFuzziness || 0.0;
+        sentenceMatchingEnabled = state.sentenceMatchingEnabled;
+        sentenceAlgorithm = state.sentenceAlgorithm || 'thomas';
+        sentenceFuzziness = state.sentenceFuzziness || 0.0;
+    } else if (state.algorithm) {
+        // Intermediate state format - has algorithm but not new fields
+        paragraphMatchingEnabled = true;
+        paragraphAlgorithm = state.algorithm === 'patience' ? 'patience' : 'thomas';
+        paragraphFuzziness = 0.0;
+        sentenceMatchingEnabled = true;
+        sentenceAlgorithm = 'thomas';
+        sentenceFuzziness = state.fuzziness || 0.0;
     } else if (state.diffMode) {
         // Old state format - migrate to new format
+        paragraphMatchingEnabled = true;
+        paragraphAlgorithm = 'thomas';
+        paragraphFuzziness = 0.0;
+        sentenceMatchingEnabled = true;
+        sentenceAlgorithm = 'thomas';
         if (state.diffMode === 'sentence') {
-            algorithm = 'sentence';
-            fuzziness = 0.0;
+            sentenceFuzziness = 0.0;
         } else if (state.diffMode === 'fuzzy') {
-            algorithm = 'sentence';
-            fuzziness = state.fuzzLevel || 0.5;
+            sentenceFuzziness = state.fuzzLevel || 0.5;
         }
     }
     
-    // Set algorithm radio
-    const algorithmRadio = document.querySelector(`input[name="algorithm"][value="${algorithm}"]`);
-    if (algorithmRadio) {
-        algorithmRadio.checked = true;
-    } else {
-        // Default to sentence if saved algorithm doesn't exist
-        algorithm = 'sentence';
-        document.querySelector(`input[name="algorithm"][value="sentence"]`).checked = true;
-    }
+    // Set paragraph controls
+    document.getElementById('paragraphEnabled').checked = paragraphMatchingEnabled;
+    const paragraphRadio = document.querySelector(`input[name="paragraphAlgorithm"][value="${paragraphAlgorithm}"]`);
+    if (paragraphRadio) paragraphRadio.checked = true;
+    document.getElementById('paragraphFuzzSlider').value = paragraphFuzziness * 10;
+    document.getElementById('paragraphFuzzValue').textContent = paragraphFuzziness.toFixed(1);
     
-    // Set fuzziness slider
-    const fuzzSlider = document.getElementById('fuzzSlider');
-    const fuzzValue = document.getElementById('fuzzValue');
-    fuzzSlider.value = fuzziness * 10;
-    fuzzValue.textContent = fuzziness.toFixed(1);
+    // Set sentence controls
+    document.getElementById('sentenceEnabled').checked = sentenceMatchingEnabled;
+    const sentenceRadio = document.querySelector(`input[name="sentenceAlgorithm"][value="${sentenceAlgorithm}"]`);
+    if (sentenceRadio) sentenceRadio.checked = true;
+    document.getElementById('sentenceFuzzSlider').value = sentenceFuzziness * 10;
+    document.getElementById('sentenceFuzzValue').textContent = sentenceFuzziness.toFixed(1);
+    
+    // Update Compare button state
+    const compareBtn = document.getElementById('compareBtn');
+    compareBtn.disabled = !paragraphMatchingEnabled && !sentenceMatchingEnabled;
 
     // Restore zoom
     if (state.zoom) {

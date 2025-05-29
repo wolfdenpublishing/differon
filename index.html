@@ -7,59 +7,73 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="toolbar">
-        <button id="compareBtn" class="toolbar-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
+    <!-- Action Buttons -->
+    <div class="action-buttons-fixed">
+        <button id="compareBtn" class="action-btn" title="Compare Documents">
+            <svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2M3 4h4a1 1 0 0 1 1 1v1H2V5a1 1 0 0 1 1-1m4 12H3a1 1 0 0 1-1-1V7h6v8a1 1 0 0 1-1 1M17 3h-4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-4 1h4a1 1 0 0 1 1 1v5h-6V5a1 1 0 0 1 1-1m4 12h-4a1 1 0 0 1-1-1v-2h6v2a1 1 0 0 1-1 1"/>
             </svg>
-            Compare
+            <span>Compare</span>
         </button>
-        <button id="clearBtn" class="toolbar-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/>
+        <button id="clearBtn" class="action-btn" title="Clear All Selections">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13 8a5 5 0 0 0-9.001-3h2a.5.5 0 1 1 0 1H3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 1 0v1.531a6 6 0 1 1-1.476 4.513a.5.5 0 0 1 .997-.089A5 5 0 0 0 13 8"/>
             </svg>
-            Clear
+            <span>Clear</span>
         </button>
-        <span class="toolbar-separator"></span>
-        <div class="diff-mode-controls">
-            <label class="toolbar-label">Algorithm:</label>
+    </div>
+
+    <!-- Paragraph Algorithm Toolbar -->
+    <div class="toolbar algorithm-toolbar">
+        <label class="algorithm-checkbox">
+            <input type="checkbox" id="paragraphEnabled" checked>
+            <span>Paragraph:</span>
+        </label>
+        <div class="algorithm-controls">
             <div class="radio-group">
                 <label class="radio-label">
-                    <input type="radio" name="algorithm" value="sentence" checked>
-                    <span>Sentence</span>
+                    <input type="radio" name="paragraphAlgorithm" value="thomas" checked>
+                    <span>Thomas</span>
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="algorithm" value="patience">
+                    <input type="radio" name="paragraphAlgorithm" value="patience">
                     <span>Patience</span>
                 </label>
             </div>
+            <div class="fuzz-controls">
+                <label class="toolbar-label">Fuzziness:</label>
+                <input type="range" id="paragraphFuzzSlider" min="0" max="10" value="0" class="fuzz-slider">
+                <span id="paragraphFuzzValue" class="fuzz-value">0.0</span>
+            </div>
         </div>
-        <div class="fuzz-controls" id="fuzzControls">
-            <label class="toolbar-label">Fuzziness:</label>
-            <input type="range" id="fuzzSlider" min="0" max="10" value="0" class="fuzz-slider">
-            <span id="fuzzValue" class="fuzz-value">0.0</span>
-        </div>
-        <span class="toolbar-separator"></span>
-        <div class="zoom-controls">
-            <button id="zoomOutBtn" class="zoom-btn" title="Zoom Out (Ctrl+-)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35M8 11h6"></path>
-                </svg>
-            </button>
-            <span id="zoomLevel" class="zoom-level">100%</span>
-            <button id="zoomInBtn" class="zoom-btn" title="Zoom In (Ctrl++)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35M11 8v6M8 11h6"></path>
-                </svg>
-            </button>
-            <button id="zoomResetBtn" class="zoom-btn" title="Reset Zoom (Ctrl+0)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="1 4 1 10 7 10"></polyline>
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
-            </button>
+    </div>
+
+    <!-- Sentence Algorithm Toolbar -->
+    <div class="toolbar algorithm-toolbar">
+        <label class="algorithm-checkbox">
+            <input type="checkbox" id="sentenceEnabled" checked>
+            <span>Sentence:</span>
+        </label>
+        <div class="algorithm-controls">
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="sentenceAlgorithm" value="thomas" checked>
+                    <span>Thomas</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="sentenceAlgorithm" value="levenshtein" disabled>
+                    <span>Levenshtein</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="sentenceAlgorithm" value="character" disabled>
+                    <span>Character</span>
+                </label>
+            </div>
+            <div class="fuzz-controls">
+                <label class="toolbar-label">Fuzziness:</label>
+                <input type="range" id="sentenceFuzzSlider" min="0" max="10" value="0" class="fuzz-slider">
+                <span id="sentenceFuzzValue" class="fuzz-value">0.0</span>
+            </div>
         </div>
     </div>
 
@@ -70,15 +84,13 @@
                     <!-- Tabs will be dynamically inserted here -->
                 </div>
                 <button class="tab-move" id="leftMoveTab" title="Move to Revised">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 4.5V6h3.586a.5.5 0 0 0 .353-.146L7.293 4.5L5.939 3.146A.5.5 0 0 0 5.586 3H3.5A1.5 1.5 0 0 0 2 4.5m-1 0A2.5 2.5 0 0 1 3.5 2h2.086a1.5 1.5 0 0 1 1.06.44L8.207 4H12.5A2.5 2.5 0 0 1 15 6.5v.757a5.5 5.5 0 0 0-1-.657v-.1A1.5 1.5 0 0 0 12.5 5H8.207l-1.56 1.56A1.5 1.5 0 0 1 5.585 7H2v4.5A1.5 1.5 0 0 0 3.5 13h2.707q.149.524.393 1H3.5A2.5 2.5 0 0 1 1 11.5zM11.5 7a4.5 4.5 0 1 1 0 9a4.5 4.5 0 0 1 0-9m2.353 4.854l.003-.003a.5.5 0 0 0 .144-.348v-.006a.5.5 0 0 0-.146-.35l-2-2a.5.5 0 0 0-.708.707L12.293 11H9.5a.5.5 0 0 0 0 1h2.793l-1.147 1.146a.5.5 0 0 0 .708.708z"/>
                     </svg>
                 </button>
                 <button class="tab-new" id="leftNewTab" title="New document">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 4.5V6h3.586a.5.5 0 0 0 .353-.146L7.293 4.5L5.939 3.146A.5.5 0 0 0 5.586 3H3.5A1.5 1.5 0 0 0 2 4.5m-1 0A2.5 2.5 0 0 1 3.5 2h2.086a1.5 1.5 0 0 1 1.06.44L8.207 4H12.5A2.5 2.5 0 0 1 15 6.5v.757a5.5 5.5 0 0 0-1-.657v-.1A1.5 1.5 0 0 0 12.5 5H8.207l-1.56 1.56A1.5 1.5 0 0 1 5.585 7H2v4.5A1.5 1.5 0 0 0 3.5 13h2.707q.149.524.393 1H3.5A2.5 2.5 0 0 1 1 11.5zm15 7a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m-4-2a.5.5 0 0 0-1 0V11H9.5a.5.5 0 0 0 0 1H11v1.5a.5.5 0 0 0 1 0V12h1.5a.5.5 0 0 0 0-1H12z"/>
                     </svg>
                 </button>
             </div>
@@ -89,10 +101,9 @@
                 </div>
             </div>
             <div class="pane-controls">
-                <label class="control-label">
-                    <input type="checkbox" id="leftSelectAll" class="select-all-checkbox">
-                    Select All
-                </label>
+                <div class="select-all-container">
+                    <input type="checkbox" id="leftSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
+                </div>
                 <span class="control-separator"></span>
                 <div class="color-controls">
                     <div class="color-control-group">
@@ -155,15 +166,13 @@
                     <!-- Tabs will be dynamically inserted here -->
                 </div>
                 <button class="tab-move" id="rightMoveTab" title="Move to Original">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 5 5 12 12 19"></polyline>
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 4.5V6h3.586a.5.5 0 0 0 .353-.146L7.293 4.5L5.939 3.146A.5.5 0 0 0 5.586 3H3.5A1.5 1.5 0 0 0 2 4.5m-1 0A2.5 2.5 0 0 1 3.5 2h2.086a1.5 1.5 0 0 1 1.06.44L8.207 4H12.5A2.5 2.5 0 0 1 15 6.5v.757a5.5 5.5 0 0 0-1-.657v-.1A1.5 1.5 0 0 0 12.5 5H8.207l-1.56 1.56A1.5 1.5 0 0 1 5.585 7H2v4.5A1.5 1.5 0 0 0 3.5 13h2.707q.149.524.393 1H3.5A2.5 2.5 0 0 1 1 11.5zM11.5 16a4.5 4.5 0 1 1 0-9a4.5 4.5 0 0 1 0 9m-2.353-4.854l-.003.003a.5.5 0 0 0-.144.348v.006a.5.5 0 0 0 .146.35l2 2a.5.5 0 0 0 .708-.707L10.707 12H13.5a.5.5 0 0 0 0-1h-2.793l1.147-1.146a.5.5 0 0 0-.708-.708z"/>
                     </svg>
                 </button>
                 <button class="tab-new" id="rightNewTab" title="New document">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 4.5V6h3.586a.5.5 0 0 0 .353-.146L7.293 4.5L5.939 3.146A.5.5 0 0 0 5.586 3H3.5A1.5 1.5 0 0 0 2 4.5m-1 0A2.5 2.5 0 0 1 3.5 2h2.086a1.5 1.5 0 0 1 1.06.44L8.207 4H12.5A2.5 2.5 0 0 1 15 6.5v.757a5.5 5.5 0 0 0-1-.657v-.1A1.5 1.5 0 0 0 12.5 5H8.207l-1.56 1.56A1.5 1.5 0 0 1 5.585 7H2v4.5A1.5 1.5 0 0 0 3.5 13h2.707q.149.524.393 1H3.5A2.5 2.5 0 0 1 1 11.5zm15 7a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0m-4-2a.5.5 0 0 0-1 0V11H9.5a.5.5 0 0 0 0 1H11v1.5a.5.5 0 0 0 1 0V12h1.5a.5.5 0 0 0 0-1H12z"/>
                     </svg>
                 </button>
             </div>
@@ -174,10 +183,9 @@
                 </div>
             </div>
             <div class="pane-controls">
-                <label class="control-label">
-                    <input type="checkbox" id="rightSelectAll" class="select-all-checkbox">
-                    Select All
-                </label>
+                <div class="select-all-container">
+                    <input type="checkbox" id="rightSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
+                </div>
                 <span class="control-separator"></span>
                 <div class="color-controls">
                     <div class="color-control-group">
@@ -237,8 +245,31 @@
         <div class="status-left">
             <span id="appInfo"></span>
         </div>
-        <div class="status-right">
+        <div class="status-center">
             <span id="dateTime"></span>
+        </div>
+        <div class="status-right">
+            <div class="zoom-controls">
+                <button id="zoomOutBtn" class="zoom-btn" title="Zoom Out (Ctrl+-)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35M8 11h6"></path>
+                    </svg>
+                </button>
+                <span id="zoomLevel" class="zoom-level">100%</span>
+                <button id="zoomInBtn" class="zoom-btn" title="Zoom In (Ctrl++)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35M11 8v6M8 11h6"></path>
+                    </svg>
+                </button>
+                <button id="zoomResetBtn" class="zoom-btn" title="Reset Zoom (Ctrl+0)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 

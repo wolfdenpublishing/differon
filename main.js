@@ -47,11 +47,16 @@ async function loadConfig() {
         hlIntensityMin: 20,
         hlIntensityMax: 60
       },
-      fuzzyMatching: {
+      fuzzySentenceMatching: {
         minMatchPercent: 10,
         maxMatchPercent: 100,
-        defaultFuzzLevel: 0.50,
+        defaultFuzzLevel: 0.00,
         wordLookAheadLimit: 5
+      },
+      fuzzyParagraphMatching: {
+        minMatchPercent: 30,
+        maxMatchPercent: 100,
+        defaultFuzzLevel: 0.00
       },
       ui: {
         statusBarUpdateIntervalMs: 60000,
@@ -61,7 +66,10 @@ async function loadConfig() {
         tooltipDisplayDurationMs: 1500
       },
       toolbar: {
-        defaultDiffMode: "sentence"
+        defaultParagraphAlgorithm: "thomas",
+        defaultSentenceAlgorithm: "thomas",
+        defaultParagraphMatchingEnabled: true,
+        defaultSentenceMatchingEnabled: true
       }
     };
   }
@@ -367,7 +375,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
 // Natural Language Diff Handlers
 const nlp = require('compromise');
 
-// Paragraph mode diff handler
+// Paragraph mode diff handler (exact matching only - legacy)
 ipcMain.handle('diff-paragraph', async (event, leftText, rightText) => {
   // Split into paragraphs - each paragraph is text between line endings
   function splitParagraphs(text) {
@@ -1933,6 +1941,231 @@ ipcMain.handle('diff-patience-fuzzy', async (event, leftSelectedText, rightSelec
     sentenceInfo: sentenceInfo,
     fuzzyMatchedPairs: fuzzyMatchedPairs
   };
+});
+
+// Paragraph matching handlers with algorithm support
+ipcMain.handle('match-paragraphs-thomas', async (event, leftText, rightText, matchThreshold) => {
+  // Split into paragraphs
+  const leftParagraphs = leftText.split(/\r\n|\r|\n/);
+  const rightParagraphs = rightText.split(/\r\n|\r|\n/);
+  
+  const result = {
+    exactMatches: [],
+    fuzzyMatches: [],
+    unmatchedLeft: new Set(),
+    unmatchedRight: new Set()
+  };
+  
+  // Initialize all as unmatched
+  leftParagraphs.forEach((_, idx) => result.unmatchedLeft.add(idx));
+  rightParagraphs.forEach((_, idx) => result.unmatchedRight.add(idx));
+  
+  // Helper function to calculate paragraph similarity
+  function calculateParagraphSimilarity(p1, p2) {
+    if (!p1.trim() || !p2.trim()) return 0;
+    
+    const words1 = p1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    const words2 = p2.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    
+    const set1 = new Set(words1);
+    const set2 = new Set(words2);
+    
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    
+    return union.size > 0 ? intersection.size / union.size : 0;
+  }
+  
+  // First pass: Find exact matches
+  let leftIndex = 0;
+  let rightIndex = 0;
+  
+  while (leftIndex < leftParagraphs.length) {
+    let found = false;
+    
+    for (let i = rightIndex; i < rightParagraphs.length; i++) {
+      if (rightParagraphs[i] === leftParagraphs[leftIndex] && leftParagraphs[leftIndex].trim() !== '') {
+        // Exact match found
+        result.exactMatches.push({
+          left: leftIndex,
+          right: i,
+          similarity: 1.0
+        });
+        
+        result.unmatchedLeft.delete(leftIndex);
+        result.unmatchedRight.delete(i);
+        
+        // Mark any skipped paragraphs
+        for (let j = rightIndex; j < i; j++) {
+          if (!result.unmatchedRight.has(j)) continue;
+          // These remain in unmatchedRight
+        }
+        
+        leftIndex++;
+        rightIndex = i + 1;
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      leftIndex++;
+    }
+  }
+  
+  // Second pass: Find fuzzy matches if threshold > 0
+  if (matchThreshold < 1.0) {
+    const unmatchedLeftArray = Array.from(result.unmatchedLeft);
+    const unmatchedRightArray = Array.from(result.unmatchedRight);
+    const rightUsed = new Set();
+    
+    for (const leftIdx of unmatchedLeftArray) {
+      const leftPara = leftParagraphs[leftIdx];
+      if (!leftPara.trim()) continue;
+      
+      let bestMatch = null;
+      let bestSimilarity = 0;
+      
+      for (const rightIdx of unmatchedRightArray) {
+        if (rightUsed.has(rightIdx)) continue;
+        
+        const rightPara = rightParagraphs[rightIdx];
+        if (!rightPara.trim()) continue;
+        
+        const similarity = calculateParagraphSimilarity(leftPara, rightPara);
+        
+        if (similarity >= matchThreshold && similarity > bestSimilarity) {
+          bestMatch = rightIdx;
+          bestSimilarity = similarity;
+        }
+      }
+      
+      if (bestMatch !== null) {
+        result.fuzzyMatches.push({
+          left: leftIdx,
+          right: bestMatch,
+          similarity: bestSimilarity
+        });
+        
+        result.unmatchedLeft.delete(leftIdx);
+        result.unmatchedRight.delete(bestMatch);
+        rightUsed.add(bestMatch);
+      }
+    }
+  }
+  
+  return result;
+});
+
+ipcMain.handle('match-paragraphs-patience', async (event, leftText, rightText, matchThreshold) => {
+  // Split into paragraphs
+  const leftParagraphs = leftText.split(/\r\n|\r|\n/);
+  const rightParagraphs = rightText.split(/\r\n|\r|\n/);
+  
+  // Use diff-match-patch library for Patience algorithm
+  const Diff = require('diff');
+  const paragraphDiff = Diff.diffArrays(leftParagraphs, rightParagraphs);
+  
+  const result = {
+    exactMatches: [],
+    fuzzyMatches: [],
+    unmatchedLeft: new Set(),
+    unmatchedRight: new Set()
+  };
+  
+  let leftOffset = 0;
+  let rightOffset = 0;
+  
+  paragraphDiff.forEach(part => {
+    if (!part.added && !part.removed) {
+      // These paragraphs match exactly
+      for (let i = 0; i < part.count; i++) {
+        const leftIdx = leftOffset + i;
+        const rightIdx = rightOffset + i;
+        
+        if (leftParagraphs[leftIdx].trim()) {
+          result.exactMatches.push({
+            left: leftIdx,
+            right: rightIdx,
+            similarity: 1.0
+          });
+        }
+      }
+      leftOffset += part.count;
+      rightOffset += part.count;
+    } else if (part.removed) {
+      // Paragraphs only in left
+      for (let i = 0; i < part.count; i++) {
+        result.unmatchedLeft.add(leftOffset + i);
+      }
+      leftOffset += part.count;
+    } else if (part.added) {
+      // Paragraphs only in right
+      for (let i = 0; i < part.count; i++) {
+        result.unmatchedRight.add(rightOffset + i);
+      }
+      rightOffset += part.count;
+    }
+  });
+  
+  // Apply fuzzy matching to unmatched paragraphs if threshold < 1.0
+  if (matchThreshold < 1.0) {
+    // Reuse the same fuzzy matching logic from Thomas algorithm
+    const unmatchedLeftArray = Array.from(result.unmatchedLeft);
+    const unmatchedRightArray = Array.from(result.unmatchedRight);
+    const rightUsed = new Set();
+    
+    function calculateParagraphSimilarity(p1, p2) {
+      if (!p1.trim() || !p2.trim()) return 0;
+      
+      const words1 = p1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      const words2 = p2.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      
+      const set1 = new Set(words1);
+      const set2 = new Set(words2);
+      
+      const intersection = new Set([...set1].filter(x => set2.has(x)));
+      const union = new Set([...set1, ...set2]);
+      
+      return union.size > 0 ? intersection.size / union.size : 0;
+    }
+    
+    for (const leftIdx of unmatchedLeftArray) {
+      const leftPara = leftParagraphs[leftIdx];
+      if (!leftPara.trim()) continue;
+      
+      let bestMatch = null;
+      let bestSimilarity = 0;
+      
+      for (const rightIdx of unmatchedRightArray) {
+        if (rightUsed.has(rightIdx)) continue;
+        
+        const rightPara = rightParagraphs[rightIdx];
+        if (!rightPara.trim()) continue;
+        
+        const similarity = calculateParagraphSimilarity(leftPara, rightPara);
+        
+        if (similarity >= matchThreshold && similarity > bestSimilarity) {
+          bestMatch = rightIdx;
+          bestSimilarity = similarity;
+        }
+      }
+      
+      if (bestMatch !== null) {
+        result.fuzzyMatches.push({
+          left: leftIdx,
+          right: bestMatch,
+          similarity: bestSimilarity
+        });
+        
+        result.unmatchedLeft.delete(leftIdx);
+        result.unmatchedRight.delete(bestMatch);
+        rightUsed.add(bestMatch);
+      }
+    }
+  }
+  
+  return result;
 });
 
 // IPC handler for clipboard operations

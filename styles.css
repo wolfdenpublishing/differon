@@ -27,7 +27,6 @@ body {
 }
 
 .toolbar {
-    height: 48px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e42;
     display: flex;
@@ -36,28 +35,105 @@ body {
     gap: 8px;
 }
 
-.toolbar-btn {
+.action-buttons-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: #252526;
+    border-right: 1px solid #3e3e42;
+    border-bottom: 1px solid #3e3e42;
+    z-index: 100;
+    height: 72px;
+    align-items: center;
+}
+
+.algorithm-toolbar {
+    height: 36px;
+    padding: 0 16px;
+    padding-left: 146px; /* Space for buttons */
+    background: #2d2d30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #3e3e42;
+}
+
+.algorithm-checkbox {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #cccccc;
+    margin-right: 12px;
+}
+
+.algorithm-checkbox input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.algorithm-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+}
+
+.action-btn {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     background: #0e639c;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 500;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    padding: 6px;
 }
 
-.toolbar-btn:hover {
+.action-btn:hover {
     background: #1177bb;
+    transform: translateY(-1px);
 }
 
-.toolbar-btn:active {
+.action-btn:active {
     background: #0d5a8f;
+    transform: translateY(0);
 }
+
+.action-btn:disabled {
+    background: #444444;
+    color: #888888;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.action-btn:disabled:hover {
+    background: #444444;
+    transform: none;
+}
+
+.action-btn svg {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.action-btn span {
+    line-height: 1;
+    font-size: 10px;
+}
+
 
 .toolbar-separator {
     width: 1px;
@@ -119,7 +195,6 @@ body {
 }
 
 .zoom-controls {
-    margin-left: auto;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -327,6 +402,7 @@ body {
 }
 
 .pane-controls {
+    position: relative;
     height: 36px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e42;
@@ -344,10 +420,23 @@ body {
     cursor: pointer;
 }
 
+.select-all-container {
+    position: absolute;
+    left: 8px; /* Position 8px from left edge, matching paragraph checkboxes */
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.select-all-checkbox {
+    cursor: pointer;
+}
+
 .control-separator {
     width: 1px;
     height: 20px;
     background: #3e3e42;
+    margin-left: 30px; /* Account for absolutely positioned checkbox */
 }
 
 .color-controls {
@@ -589,6 +678,15 @@ body {
     background: hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity));
 }
 
+/* Fuzzy matched paragraphs use variable alpha based on similarity */
+.paragraph.paragraph-fuzzy-matched.deleted::before {
+    background: hsla(var(--left-hl-hue), 70%, 50%, calc(var(--left-hl-intensity) * var(--paragraph-match-alpha, 1)));
+}
+
+.paragraph.paragraph-fuzzy-matched.added::before {
+    background: hsla(var(--right-hl-hue), 70%, 50%, calc(var(--right-hl-intensity) * var(--paragraph-match-alpha, 1)));
+}
+
 /* Matched paragraph styling */
 .paragraph.paragraph-matched {
     cursor: pointer;
@@ -693,10 +791,48 @@ body {
 
 .status-left {
     flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.status-center {
+    flex: 1;
+    text-align: center;
 }
 
 .status-right {
-    text-align: right;
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.status-bar .zoom-controls {
+    margin: 0;
+    gap: 4px;
+}
+
+.status-bar .zoom-btn {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid #3e3e42;
+}
+
+.status-bar .zoom-btn:hover {
+    background: #3e3e42;
+    border-color: #4e4e52;
+}
+
+.status-bar .zoom-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.status-bar .zoom-level {
+    font-size: 10px;
+    min-width: 35px;
 }
 
 /* Scrollbar styling */
