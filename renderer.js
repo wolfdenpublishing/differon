@@ -23,8 +23,8 @@ let activeTab = {
 
 // Global settings and state
 let currentZoom = 1.0;
-let diffMode = 'sentence';
-let fuzzLevel = 0.5;
+let algorithm = 'sentence';  // 'sentence' or 'patience'
+let fuzziness = 0.0;  // 0.0-1.0, where 0.0 = exact matching
 let appConfig = null;
 
 // Store resize observers to prevent memory leaks
@@ -1070,32 +1070,52 @@ async function performComparison() {
     const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
 
     try {
-        // Perform diff based on selected mode
+        // Perform diff based on selected algorithm and fuzziness
         let diff;
-        switch (diffMode) {
+        
+        // Calculate match threshold from fuzziness level
+        const minMatch = appConfig?.fuzzyMatching?.minMatchPercent || 10;
+        const maxMatch = appConfig?.fuzzyMatching?.maxMatchPercent || 100;
+        // fuzziness 0.00 = maxMatch%, fuzziness 1.00 = minMatch%
+        const matchThreshold = (maxMatch - (fuzziness * (maxMatch - minMatch))) / 100;
+        
+        switch (algorithm) {
             case 'sentence':
-                // Pass the selected paragraph indices and full text to help with mapping
-                const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content);
-                diff = result.diff;
-                matchedSentences = result.matchedSentences;
-                currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
-                fuzzyMatchedPairs = []; // No fuzzy pairs in whole sentence mode
+                if (fuzziness < 0.01) {  // Use threshold to handle floating point precision
+                    // Exact matching (old "Whole Sentence" mode)
+                    const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content);
+                    diff = result.diff;
+                    matchedSentences = result.matchedSentences;
+                    currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
+                    fuzzyMatchedPairs = [];
+                } else {
+                    // Fuzzy matching (old "Fuzzy Sentence" mode)
+                    const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content, matchThreshold);
+                    diff = fuzzyResult.diff;
+                    matchedSentences = fuzzyResult.matchedSentences;
+                    currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
+                    fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
+                }
                 break;
-            case 'fuzzy':
-                // Calculate match threshold from fuzz level using config values
-                const minMatch = appConfig?.fuzzyMatching?.minMatchPercent || 10;
-                const maxMatch = appConfig?.fuzzyMatching?.maxMatchPercent || 100;
-                const range = (maxMatch - minMatch) / 100;
-                // fuzzLevel 0.00 = maxMatch%, fuzzLevel 1.00 = minMatch%
-                const matchThreshold = (maxMatch - (fuzzLevel * (maxMatch - minMatch))) / 100;
-                const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content, matchThreshold);
-                diff = fuzzyResult.diff;
-                matchedSentences = fuzzyResult.matchedSentences;
-                currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
-                fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
+            case 'patience':
+                if (fuzziness < 0.01) {  // Use threshold to handle floating point precision
+                    // Patience with exact matching
+                    const result = await window.api.diffPatience(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content);
+                    diff = result.diff;
+                    matchedSentences = result.matchedSentences;
+                    currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
+                    fuzzyMatchedPairs = [];
+                } else {
+                    // Patience with fuzzy matching
+                    const fuzzyResult = await window.api.diffPatienceFuzzy(leftSelectedContent, rightSelectedContent, leftSelectedParagraphs, rightSelectedParagraphs, leftDoc.content, rightDoc.content, matchThreshold);
+                    diff = fuzzyResult.diff;
+                    matchedSentences = fuzzyResult.matchedSentences;
+                    currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
+                    fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
+                }
                 break;
             default:
-                console.error('Invalid diff mode:', diffMode);
+                console.error('Invalid algorithm:', algorithm);
                 return;
         }
 
@@ -1103,7 +1123,11 @@ async function performComparison() {
         applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagraphs);
     } catch (error) {
         console.error('Error performing comparison:', error);
-        alert('Error performing comparison. Please try selecting fewer paragraphs.');
+        console.error('Algorithm:', algorithm);
+        console.error('Fuzziness:', fuzziness);
+        console.error('Left paragraphs selected:', leftSelectedParagraphs.length);
+        console.error('Right paragraphs selected:', rightSelectedParagraphs.length);
+        alert(`Error performing comparison: ${error.message}\n\nPlease check the console for more details.`);
     }
 }
 
@@ -1266,7 +1290,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         let lastPos = 0;
         
         // Get sentence info for this paragraph
-        const sentences = (diffMode === 'sentence' || diffMode === 'fuzzy') && currentSentences.left.has(paragraphNum) 
+        const sentences = currentSentences.left.has(paragraphNum) 
             ? currentSentences.left.get(paragraphNum) : [];
         
         if (mergedHighlights.length === 0 && sentences.length > 0) {
@@ -1282,7 +1306,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
                 
                 // Add the highlighted text
                 const highlightText = paragraphInfo.text.slice(highlight.start, highlight.end);
-                const className = `diff-part ${diffMode}-${highlight.type}`;
+                const className = `diff-part ${algorithm}-${highlight.type}`;
                 html += `<span class="${className}" data-text="${escapeHtml(highlight.text)}">${escapeHtml(highlightText)}</span>`;
                 
                 lastPos = highlight.end;
@@ -1341,7 +1365,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         let lastPos = 0;
         
         // Get sentence info for this paragraph
-        const sentences = (diffMode === 'sentence' || diffMode === 'fuzzy') && currentSentences.right.has(paragraphNum) 
+        const sentences = currentSentences.right.has(paragraphNum) 
             ? currentSentences.right.get(paragraphNum) : [];
         
         if (mergedHighlights.length === 0 && sentences.length > 0) {
@@ -1357,7 +1381,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
                 
                 // Add the highlighted text
                 const highlightText = paragraphInfo.text.slice(highlight.start, highlight.end);
-                const className = `diff-part ${diffMode}-${highlight.type}`;
+                const className = `diff-part ${algorithm}-${highlight.type}`;
                 html += `<span class="${className}" data-text="${escapeHtml(highlight.text)}">${escapeHtml(highlightText)}</span>`;
                 
                 lastPos = highlight.end;
@@ -1440,7 +1464,7 @@ function setupCopyTooltip() {
 
 // Helper function to process text and mark matched sentences
 function processTextForSentences(text, startOffset, paragraphNum, side, sentences) {
-    if (!text || (diffMode !== 'sentence' && diffMode !== 'fuzzy')) {
+    if (!text) {
         return escapeHtml(text);
     }
     
@@ -1797,21 +1821,14 @@ function setupColorControls() {
 }
 
 function setupDiffModeControls() {
-    const diffModeRadios = document.querySelectorAll('input[name="diffMode"]');
-    const fuzzControls = document.getElementById('fuzzControls');
+    const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
     const fuzzSlider = document.getElementById('fuzzSlider');
     const fuzzValue = document.getElementById('fuzzValue');
     
-    diffModeRadios.forEach(radio => {
+    // Set up algorithm selection
+    algorithmRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
-            diffMode = e.target.value;
-            
-            // Show/hide fuzz controls
-            if (diffMode === 'fuzzy') {
-                fuzzControls.style.display = 'flex';
-            } else {
-                fuzzControls.style.display = 'none';
-            }
+            algorithm = e.target.value;
             
             // If there's an active comparison, clear it
             if (document.querySelector('.paragraph.deleted, .paragraph.added')) {
@@ -1821,15 +1838,15 @@ function setupDiffModeControls() {
         });
     });
     
-    // Set up fuzz slider
+    // Set up fuzziness slider
     fuzzSlider.addEventListener('input', (e) => {
         const sliderValue = parseInt(e.target.value); // Raw slider value (0-10)
         const convertedValue = sliderValue / 10; // Convert to 0.0-1.0
-        fuzzLevel = convertedValue;
+        fuzziness = convertedValue;
         fuzzValue.textContent = convertedValue.toFixed(1);
         
-        // If there's an active comparison in fuzzy mode, clear it to force re-comparison
-        if (diffMode === 'fuzzy' && document.querySelector('.paragraph.deleted, .paragraph.added')) {
+        // If there's an active comparison and fuzziness changed, clear it to force re-comparison
+        if (document.querySelector('.paragraph.deleted, .paragraph.added')) {
             clearComparison();
         }
         saveState();
@@ -2004,8 +2021,8 @@ function saveState() {
     const state = {
         documents: documentsArray,
         activeTab: activeTab,
-        diffMode: diffMode,
-        fuzzLevel: fuzzLevel,
+        algorithm: algorithm,
+        fuzziness: fuzziness,
         zoom: currentZoom,
         colors: {
             leftBgHue: document.getElementById('leftBgColor').value,
@@ -2032,35 +2049,37 @@ async function loadSavedState() {
     document.getElementById('leftTabsContainer').innerHTML = '';
     document.getElementById('rightTabsContainer').innerHTML = '';
 
-    // Restore diff mode
-    if (state.diffMode) {
-        diffMode = state.diffMode;
-        const modeRadio = document.querySelector(`input[name="diffMode"][value="${diffMode}"]`);
-        if (modeRadio) {
-            modeRadio.checked = true;
-        } else {
-            // Default to sentence if saved mode doesn't exist
-            diffMode = 'sentence';
-            document.querySelector(`input[name="diffMode"][value="sentence"]`).checked = true;
-        }
-        
-        // Show/hide fuzz controls
-        const fuzzControls = document.getElementById('fuzzControls');
-        if (diffMode === 'fuzzy') {
-            fuzzControls.style.display = 'flex';
-        } else {
-            fuzzControls.style.display = 'none';
+    // Restore algorithm and fuzziness with backwards compatibility
+    if (state.algorithm) {
+        // New state format
+        algorithm = state.algorithm;
+        fuzziness = state.fuzziness || 0.0;
+    } else if (state.diffMode) {
+        // Old state format - migrate to new format
+        if (state.diffMode === 'sentence') {
+            algorithm = 'sentence';
+            fuzziness = 0.0;
+        } else if (state.diffMode === 'fuzzy') {
+            algorithm = 'sentence';
+            fuzziness = state.fuzzLevel || 0.5;
         }
     }
     
-    // Restore fuzz level
-    if (state.fuzzLevel !== undefined) {
-        fuzzLevel = state.fuzzLevel;
-        const fuzzSlider = document.getElementById('fuzzSlider');
-        const fuzzValue = document.getElementById('fuzzValue');
-        fuzzSlider.value = fuzzLevel * 10;
-        fuzzValue.textContent = fuzzLevel.toFixed(1);
+    // Set algorithm radio
+    const algorithmRadio = document.querySelector(`input[name="algorithm"][value="${algorithm}"]`);
+    if (algorithmRadio) {
+        algorithmRadio.checked = true;
+    } else {
+        // Default to sentence if saved algorithm doesn't exist
+        algorithm = 'sentence';
+        document.querySelector(`input[name="algorithm"][value="sentence"]`).checked = true;
     }
+    
+    // Set fuzziness slider
+    const fuzzSlider = document.getElementById('fuzzSlider');
+    const fuzzValue = document.getElementById('fuzzValue');
+    fuzzSlider.value = fuzziness * 10;
+    fuzzValue.textContent = fuzziness.toFixed(1);
 
     // Restore zoom
     if (state.zoom) {

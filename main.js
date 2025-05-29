@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, dialog, clipboard, screen } = require
 const path = require('path');
 const fs = require('fs').promises;
 const packageInfo = require('./package.json');
+const Diff = require('diff');
 
 let mainWindow;
 let currentZoom = 1.0;
@@ -1166,6 +1167,768 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
   
   return { 
     diff: positionedDiff, 
+    matchedSentences: matchedSentences,
+    sentenceInfo: sentenceInfo,
+    fuzzyMatchedPairs: fuzzyMatchedPairs
+  };
+});
+
+// Patience diff handler with exact matching
+ipcMain.handle('diff-patience', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText) => {
+  // Split the full text into paragraphs
+  const leftFullParagraphs = leftFullText.split(/\r\n|\r|\n/);
+  const rightFullParagraphs = rightFullText.split(/\r\n|\r|\n/);
+  
+  // Get the selected paragraphs
+  const leftSelectedTexts = leftSelectedParagraphs.map(i => leftFullParagraphs[i] || '');
+  const rightSelectedTexts = rightSelectedParagraphs.map(i => rightFullParagraphs[i] || '');
+  
+  // First pass: Use array diff to match paragraphs
+  // The diff package provides diffArrays which can be used for paragraph matching
+  const paragraphDiff = Diff.diffArrays(leftSelectedTexts, rightSelectedTexts);
+  
+  // Build matched paragraph pairs
+  const matchedParagraphPairs = [];
+  const unmatchedLeft = new Set(leftSelectedParagraphs);
+  const unmatchedRight = new Set(rightSelectedParagraphs);
+  
+  let leftOffset = 0;
+  let rightOffset = 0;
+  
+  paragraphDiff.forEach(part => {
+    if (!part.added && !part.removed) {
+      // These paragraphs match between documents
+      for (let i = 0; i < part.count; i++) {
+        const leftIdx = leftSelectedParagraphs[leftOffset + i];
+        const rightIdx = rightSelectedParagraphs[rightOffset + i];
+        
+        matchedParagraphPairs.push({
+          left: leftIdx,
+          right: rightIdx,
+          leftText: leftFullParagraphs[leftIdx],
+          rightText: rightFullParagraphs[rightIdx]
+        });
+        
+        unmatchedLeft.delete(leftIdx);
+        unmatchedRight.delete(rightIdx);
+      }
+      leftOffset += part.count;
+      rightOffset += part.count;
+    } else if (part.removed) {
+      // These paragraphs were removed (only in left)
+      leftOffset += part.count;
+    } else if (part.added) {
+      // These paragraphs were added (only in right)
+      rightOffset += part.count;
+    }
+  });
+  
+  // Second pass: Apply sentence-level diffing within matched paragraphs
+  const sentenceInfo = { left: new Map(), right: new Map() };
+  const matchedSentences = { leftToRight: new Map(), rightToLeft: new Map() };
+  const allDiffs = [];
+  
+  // Helper function to split into sentences (reuse from existing code)
+  function splitIntoSentences(text) {
+    if (!text.trim()) return [];
+    
+    const sentences = [];
+    const doc = nlp(text);
+    const nlpSentences = doc.sentences().out('array');
+    
+    const regexSentences = [];
+    const sentenceRegex = /[^.!?]*[.!?]+(?:\s+|$)/g;
+    let match;
+    let lastEnd = 0;
+    
+    while ((match = sentenceRegex.exec(text)) !== null) {
+      const sentence = match[0].trim();
+      if (sentence) {
+        regexSentences.push(sentence);
+      }
+      lastEnd = match.index + match[0].length;
+    }
+    
+    if (lastEnd < text.length) {
+      const remaining = text.substring(lastEnd).trim();
+      if (remaining) {
+        regexSentences.push(remaining);
+      }
+    }
+    
+    const sourceSentences = nlpSentences.length >= regexSentences.length ? nlpSentences : regexSentences;
+    const seen = new Set();
+    for (const sentence of sourceSentences) {
+      const trimmed = sentence.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        sentences.push(trimmed);
+        seen.add(trimmed);
+      }
+    }
+    
+    if (sentences.length === 0 && text.trim()) {
+      sentences.push(text.trim());
+    }
+    
+    return sentences;
+  }
+  
+  // Process matched paragraph pairs
+  for (const pair of matchedParagraphPairs) {
+    const leftSentences = splitIntoSentences(pair.leftText);
+    const rightSentences = splitIntoSentences(pair.rightText);
+    
+    // Apply exact sentence matching within the paragraph pair
+    let leftIndex = 0;
+    let rightIndex = 0;
+    
+    while (leftIndex < leftSentences.length) {
+      let found = false;
+      
+      for (let i = rightIndex; i < rightSentences.length; i++) {
+        if (rightSentences[i] === leftSentences[leftIndex]) {
+          // Found exact match
+          const sentenceKey = `${pair.left}:${leftSentences[leftIndex]}`;
+          const rightKey = `${pair.right}:${rightSentences[i]}`;
+          
+          matchedSentences.leftToRight.set(sentenceKey, rightKey);
+          matchedSentences.rightToLeft.set(rightKey, sentenceKey);
+          
+          // Mark sentences before match as added
+          for (let j = rightIndex; j < i; j++) {
+            // Calculate position in selected text
+            const globalStart = calculateGlobalPosition(pair.right, rightSentences[j], rightSelectedParagraphs, rightFullParagraphs);
+            allDiffs.push({
+              value: rightSentences[j],
+              added: true,
+              removed: false,
+              start: globalStart,
+              end: globalStart + rightSentences[j].length,
+              side: 'right'
+            });
+          }
+          
+          leftIndex++;
+          rightIndex = i + 1;
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        // No match found - mark as deleted
+        const globalStart = calculateGlobalPosition(pair.left, leftSentences[leftIndex], leftSelectedParagraphs, leftFullParagraphs);
+        allDiffs.push({
+          value: leftSentences[leftIndex],
+          removed: true,
+          added: false,
+          start: globalStart,
+          end: globalStart + leftSentences[leftIndex].length,
+          side: 'left'
+        });
+        leftIndex++;
+      }
+    }
+    
+    // Mark remaining right sentences as added
+    while (rightIndex < rightSentences.length) {
+      const globalStart = calculateGlobalPosition(pair.right, rightSentences[rightIndex], rightSelectedParagraphs, rightFullParagraphs);
+      allDiffs.push({
+        value: rightSentences[rightIndex],
+        added: true,
+        removed: false,
+        start: globalStart,
+        end: globalStart + rightSentences[rightIndex].length,
+        side: 'right'
+      });
+      rightIndex++;
+    }
+    
+    // Store sentence info
+    if (!sentenceInfo.left.has(pair.left)) {
+      sentenceInfo.left.set(pair.left, []);
+    }
+    if (!sentenceInfo.right.has(pair.right)) {
+      sentenceInfo.right.set(pair.right, []);
+    }
+    
+    leftSentences.forEach(sentence => {
+      const start = pair.leftText.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.left.get(pair.left).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+    
+    rightSentences.forEach(sentence => {
+      const start = pair.rightText.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.right.get(pair.right).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+  }
+  
+  // Process unmatched paragraphs as whole units
+  unmatchedLeft.forEach(paragraphIndex => {
+    const text = leftFullParagraphs[paragraphIndex];
+    if (text.trim()) {
+      const globalStart = calculateGlobalPositionForParagraph(paragraphIndex, leftSelectedParagraphs, leftFullParagraphs);
+      allDiffs.push({
+        value: text,
+        removed: true,
+        added: false,
+        start: globalStart,
+        end: globalStart + text.length,
+        side: 'left'
+      });
+    }
+  });
+  
+  unmatchedRight.forEach(paragraphIndex => {
+    const text = rightFullParagraphs[paragraphIndex];
+    if (text.trim()) {
+      const globalStart = calculateGlobalPositionForParagraph(paragraphIndex, rightSelectedParagraphs, rightFullParagraphs);
+      allDiffs.push({
+        value: text,
+        added: true,
+        removed: false,
+        start: globalStart,
+        end: globalStart + text.length,
+        side: 'right'
+      });
+    }
+  });
+  
+  // Helper function to calculate position
+  function calculateGlobalPosition(paragraphIndex, sentence, selectedParagraphs, fullParagraphs) {
+    let globalStart = 0;
+    for (let i = 0; i < selectedParagraphs.length; i++) {
+      if (selectedParagraphs[i] === paragraphIndex) {
+        const paragraphText = fullParagraphs[paragraphIndex];
+        const sentenceStart = paragraphText.indexOf(sentence);
+        globalStart += sentenceStart;
+        break;
+      }
+      globalStart += (fullParagraphs[selectedParagraphs[i]] || '').length + 1;
+    }
+    return globalStart;
+  }
+  
+  function calculateGlobalPositionForParagraph(paragraphIndex, selectedParagraphs, fullParagraphs) {
+    let globalStart = 0;
+    for (let i = 0; i < selectedParagraphs.length; i++) {
+      if (selectedParagraphs[i] === paragraphIndex) {
+        break;
+      }
+      globalStart += (fullParagraphs[selectedParagraphs[i]] || '').length + 1;
+    }
+    return globalStart;
+  }
+  
+  return {
+    diff: allDiffs,
+    matchedSentences: matchedSentences,
+    sentenceInfo: sentenceInfo
+  };
+});
+
+// Patience diff handler with fuzzy matching
+ipcMain.handle('diff-patience-fuzzy', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText, matchThreshold) => {
+  // Split the full text into paragraphs
+  const leftFullParagraphs = leftFullText.split(/\r\n|\r|\n/);
+  const rightFullParagraphs = rightFullText.split(/\r\n|\r|\n/);
+  
+  // Get the selected paragraphs
+  const leftSelectedTexts = leftSelectedParagraphs.map(i => leftFullParagraphs[i] || '');
+  const rightSelectedTexts = rightSelectedParagraphs.map(i => rightFullParagraphs[i] || '');
+  
+  // First pass: Use array diff to match paragraphs (same as exact patience)
+  const paragraphDiff = Diff.diffArrays(leftSelectedTexts, rightSelectedTexts);
+  
+  // Build matched paragraph pairs
+  const matchedParagraphPairs = [];
+  const unmatchedLeft = new Set(leftSelectedParagraphs);
+  const unmatchedRight = new Set(rightSelectedParagraphs);
+  
+  let leftOffset = 0;
+  let rightOffset = 0;
+  
+  paragraphDiff.forEach(part => {
+    if (!part.added && !part.removed) {
+      // These paragraphs match between documents
+      for (let i = 0; i < part.count; i++) {
+        const leftIdx = leftSelectedParagraphs[leftOffset + i];
+        const rightIdx = rightSelectedParagraphs[rightOffset + i];
+        
+        matchedParagraphPairs.push({
+          left: leftIdx,
+          right: rightIdx,
+          leftText: leftFullParagraphs[leftIdx],
+          rightText: rightFullParagraphs[rightIdx]
+        });
+        
+        unmatchedLeft.delete(leftIdx);
+        unmatchedRight.delete(rightIdx);
+      }
+      leftOffset += part.count;
+      rightOffset += part.count;
+    } else if (part.removed) {
+      leftOffset += part.count;
+    } else if (part.added) {
+      rightOffset += part.count;
+    }
+  });
+  
+  // Second pass: Apply fuzzy sentence matching within matched paragraphs
+  const sentenceInfo = { left: new Map(), right: new Map() };
+  const matchedSentences = { leftToRight: new Map(), rightToLeft: new Map() };
+  const allDiffs = [];
+  const fuzzyMatchedPairs = [];
+  
+  // Helper functions (reuse from existing code)
+  function splitIntoSentences(text) {
+    if (!text.trim()) return [];
+    
+    const sentences = [];
+    const doc = nlp(text);
+    const nlpSentences = doc.sentences().out('array');
+    
+    const regexSentences = [];
+    const sentenceRegex = /[^.!?]*[.!?]+(?:\s+|$)/g;
+    let match;
+    let lastEnd = 0;
+    
+    while ((match = sentenceRegex.exec(text)) !== null) {
+      const sentence = match[0].trim();
+      if (sentence) {
+        regexSentences.push(sentence);
+      }
+      lastEnd = match.index + match[0].length;
+    }
+    
+    if (lastEnd < text.length) {
+      const remaining = text.substring(lastEnd).trim();
+      if (remaining) {
+        regexSentences.push(remaining);
+      }
+    }
+    
+    const sourceSentences = nlpSentences.length >= regexSentences.length ? nlpSentences : regexSentences;
+    const seen = new Set();
+    for (const sentence of sourceSentences) {
+      const trimmed = sentence.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        sentences.push(trimmed);
+        seen.add(trimmed);
+      }
+    }
+    
+    if (sentences.length === 0 && text.trim()) {
+      sentences.push(text.trim());
+    }
+    
+    return sentences;
+  }
+  
+  function calculateSimilarity(s1, s2) {
+    const words1 = s1.toLowerCase().split(/\s+/);
+    const words2 = s2.toLowerCase().split(/\s+/);
+    
+    const set1 = new Set(words1);
+    const set2 = new Set(words2);
+    
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    
+    return intersection.size / union.size;
+  }
+  
+  function getWordDiff(s1, s2) {
+    const words1 = s1.split(/\s+/);
+    const words2 = s2.split(/\s+/);
+    
+    const diff = [];
+    let i = 0, j = 0;
+    
+    while (i < words1.length || j < words2.length) {
+      if (i >= words1.length) {
+        diff.push({ type: 'added', value: words2.slice(j).join(' ') });
+        break;
+      } else if (j >= words2.length) {
+        diff.push({ type: 'deleted', value: words1.slice(i).join(' ') });
+        break;
+      } else if (words1[i] === words2[j]) {
+        diff.push({ type: 'unchanged', value: words1[i] });
+        i++;
+        j++;
+      } else {
+        let nextMatchI = -1;
+        let nextMatchJ = -1;
+        
+        for (let li = i + 1; li < Math.min(i + 5, words1.length); li++) {
+          for (let lj = j + 1; lj < Math.min(j + 5, words2.length); lj++) {
+            if (words1[li] === words2[lj]) {
+              nextMatchI = li;
+              nextMatchJ = lj;
+              break;
+            }
+          }
+          if (nextMatchI !== -1) break;
+        }
+        
+        if (nextMatchI !== -1) {
+          if (nextMatchI > i) {
+            diff.push({ type: 'deleted', value: words1.slice(i, nextMatchI).join(' ') });
+          }
+          if (nextMatchJ > j) {
+            diff.push({ type: 'added', value: words2.slice(j, nextMatchJ).join(' ') });
+          }
+          i = nextMatchI;
+          j = nextMatchJ;
+        } else {
+          diff.push({ type: 'deleted', value: words1.slice(i).join(' ') });
+          diff.push({ type: 'added', value: words2.slice(j).join(' ') });
+          break;
+        }
+      }
+    }
+    
+    return diff;
+  }
+  
+  // Process matched paragraph pairs with fuzzy sentence matching
+  for (const pair of matchedParagraphPairs) {
+    const leftSentences = splitIntoSentences(pair.leftText);
+    const rightSentences = splitIntoSentences(pair.rightText);
+    
+    const rightUsed = new Set();
+    let leftIndex = 0;
+    
+    while (leftIndex < leftSentences.length) {
+      let found = false;
+      let fuzzyMatch = null;
+      let fuzzyMatchIndex = -1;
+      let bestSimilarity = 0;
+      
+      // First look for exact match
+      for (let i = 0; i < rightSentences.length; i++) {
+        if (!rightUsed.has(i) && rightSentences[i] === leftSentences[leftIndex]) {
+          // Found exact match
+          const sentenceKey = `${pair.left}:${leftSentences[leftIndex]}`;
+          const rightKey = `${pair.right}:${rightSentences[i]}`;
+          
+          matchedSentences.leftToRight.set(sentenceKey, rightKey);
+          matchedSentences.rightToLeft.set(rightKey, sentenceKey);
+          
+          rightUsed.add(i);
+          leftIndex++;
+          found = true;
+          break;
+        }
+      }
+      
+      // If no exact match, look for fuzzy match
+      if (!found) {
+        for (let i = 0; i < rightSentences.length; i++) {
+          if (!rightUsed.has(i)) {
+            const similarity = calculateSimilarity(leftSentences[leftIndex], rightSentences[i]);
+            if (similarity >= matchThreshold && similarity > bestSimilarity) {
+              bestSimilarity = similarity;
+              fuzzyMatch = rightSentences[i];
+              fuzzyMatchIndex = i;
+            }
+          }
+        }
+        
+        if (fuzzyMatch) {
+          // Found fuzzy match
+          rightUsed.add(fuzzyMatchIndex);
+          
+          // Store fuzzy matched pair with word diff
+          const wordDiff = getWordDiff(leftSentences[leftIndex], fuzzyMatch);
+          fuzzyMatchedPairs.push({
+            left: {
+              sentence: leftSentences[leftIndex],
+              paragraphIndex: pair.left,
+              paragraphText: pair.leftText
+            },
+            right: {
+              sentence: fuzzyMatch,
+              paragraphIndex: pair.right,
+              paragraphText: pair.rightText
+            },
+            wordDiff: wordDiff
+          });
+          
+          // Store as matched for syncing
+          const sentenceKey = `${pair.left}:${leftSentences[leftIndex]}`;
+          const rightKey = `${pair.right}:${fuzzyMatch}`;
+          matchedSentences.leftToRight.set(sentenceKey, rightKey);
+          matchedSentences.rightToLeft.set(rightKey, sentenceKey);
+          
+          leftIndex++;
+          found = true;
+        }
+      }
+      
+      if (!found) {
+        // No match found - mark as deleted
+        const globalStart = calculateGlobalPosition(pair.left, leftSentences[leftIndex], leftSelectedParagraphs, leftFullParagraphs);
+        allDiffs.push({
+          value: leftSentences[leftIndex],
+          removed: true,
+          added: false,
+          start: globalStart,
+          end: globalStart + leftSentences[leftIndex].length,
+          side: 'left'
+        });
+        leftIndex++;
+      }
+    }
+    
+    // Mark unmatched right sentences as added
+    for (let i = 0; i < rightSentences.length; i++) {
+      if (!rightUsed.has(i)) {
+        const globalStart = calculateGlobalPosition(pair.right, rightSentences[i], rightSelectedParagraphs, rightFullParagraphs);
+        allDiffs.push({
+          value: rightSentences[i],
+          added: true,
+          removed: false,
+          start: globalStart,
+          end: globalStart + rightSentences[i].length,
+          side: 'right'
+        });
+      }
+    }
+    
+    // Store sentence info
+    if (!sentenceInfo.left.has(pair.left)) {
+      sentenceInfo.left.set(pair.left, []);
+    }
+    if (!sentenceInfo.right.has(pair.right)) {
+      sentenceInfo.right.set(pair.right, []);
+    }
+    
+    leftSentences.forEach(sentence => {
+      const start = pair.leftText.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.left.get(pair.left).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+    
+    rightSentences.forEach(sentence => {
+      const start = pair.rightText.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.right.get(pair.right).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+  }
+  
+  // Process unmatched paragraphs with sentence-level fuzzy matching
+  // Collect all unmatched paragraphs for cross-comparison
+  const unmatchedLeftParagraphs = Array.from(unmatchedLeft).map(idx => ({
+    index: idx,
+    text: leftFullParagraphs[idx],
+    sentences: splitIntoSentences(leftFullParagraphs[idx])
+  }));
+  
+  const unmatchedRightParagraphs = Array.from(unmatchedRight).map(idx => ({
+    index: idx,
+    text: rightFullParagraphs[idx],
+    sentences: splitIntoSentences(rightFullParagraphs[idx])
+  }));
+  
+  // Collect all sentences from unmatched paragraphs
+  const unmatchedLeftSentences = [];
+  const unmatchedRightSentences = [];
+  
+  unmatchedLeftParagraphs.forEach(para => {
+    para.sentences.forEach(sentence => {
+      unmatchedLeftSentences.push({
+        sentence: sentence,
+        paragraphIndex: para.index,
+        paragraphText: para.text
+      });
+    });
+  });
+  
+  unmatchedRightParagraphs.forEach(para => {
+    para.sentences.forEach(sentence => {
+      unmatchedRightSentences.push({
+        sentence: sentence,
+        paragraphIndex: para.index,
+        paragraphText: para.text
+      });
+    });
+  });
+  
+  // Apply fuzzy matching between sentences from unmatched paragraphs
+  const rightUsed = new Set();
+  
+  for (let i = 0; i < unmatchedLeftSentences.length; i++) {
+    const leftItem = unmatchedLeftSentences[i];
+    let found = false;
+    let fuzzyMatch = null;
+    let fuzzyMatchIndex = -1;
+    let bestSimilarity = 0;
+    
+    // First look for exact match
+    for (let j = 0; j < unmatchedRightSentences.length; j++) {
+      if (!rightUsed.has(j) && unmatchedRightSentences[j].sentence === leftItem.sentence) {
+        // Found exact match
+        const sentenceKey = `${leftItem.paragraphIndex}:${leftItem.sentence}`;
+        const rightKey = `${unmatchedRightSentences[j].paragraphIndex}:${unmatchedRightSentences[j].sentence}`;
+        
+        matchedSentences.leftToRight.set(sentenceKey, rightKey);
+        matchedSentences.rightToLeft.set(rightKey, sentenceKey);
+        
+        rightUsed.add(j);
+        found = true;
+        break;
+      }
+    }
+    
+    // If no exact match, look for fuzzy match
+    if (!found) {
+      for (let j = 0; j < unmatchedRightSentences.length; j++) {
+        if (!rightUsed.has(j)) {
+          const similarity = calculateSimilarity(leftItem.sentence, unmatchedRightSentences[j].sentence);
+          if (similarity >= matchThreshold && similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            fuzzyMatch = unmatchedRightSentences[j];
+            fuzzyMatchIndex = j;
+          }
+        }
+      }
+      
+      if (fuzzyMatch) {
+        // Found fuzzy match
+        rightUsed.add(fuzzyMatchIndex);
+        
+        // Store fuzzy matched pair with word diff
+        const wordDiff = getWordDiff(leftItem.sentence, fuzzyMatch.sentence);
+        fuzzyMatchedPairs.push({
+          left: leftItem,
+          right: fuzzyMatch,
+          wordDiff: wordDiff
+        });
+        
+        // Store as matched for syncing
+        const sentenceKey = `${leftItem.paragraphIndex}:${leftItem.sentence}`;
+        const rightKey = `${fuzzyMatch.paragraphIndex}:${fuzzyMatch.sentence}`;
+        matchedSentences.leftToRight.set(sentenceKey, rightKey);
+        matchedSentences.rightToLeft.set(rightKey, sentenceKey);
+        
+        found = true;
+      }
+    }
+    
+    if (!found) {
+      // No match found - mark sentence as deleted
+      const globalStart = calculateGlobalPosition(leftItem.paragraphIndex, leftItem.sentence, leftSelectedParagraphs, leftFullParagraphs);
+      allDiffs.push({
+        value: leftItem.sentence,
+        removed: true,
+        added: false,
+        start: globalStart,
+        end: globalStart + leftItem.sentence.length,
+        side: 'left'
+      });
+    }
+  }
+  
+  // Mark unmatched right sentences as added
+  for (let j = 0; j < unmatchedRightSentences.length; j++) {
+    if (!rightUsed.has(j)) {
+      const rightItem = unmatchedRightSentences[j];
+      const globalStart = calculateGlobalPosition(rightItem.paragraphIndex, rightItem.sentence, rightSelectedParagraphs, rightFullParagraphs);
+      allDiffs.push({
+        value: rightItem.sentence,
+        added: true,
+        removed: false,
+        start: globalStart,
+        end: globalStart + rightItem.sentence.length,
+        side: 'right'
+      });
+    }
+  }
+  
+  // Update sentence info for unmatched paragraphs
+  unmatchedLeftParagraphs.forEach(para => {
+    if (!sentenceInfo.left.has(para.index)) {
+      sentenceInfo.left.set(para.index, []);
+    }
+    para.sentences.forEach(sentence => {
+      const start = para.text.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.left.get(para.index).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+  });
+  
+  unmatchedRightParagraphs.forEach(para => {
+    if (!sentenceInfo.right.has(para.index)) {
+      sentenceInfo.right.set(para.index, []);
+    }
+    para.sentences.forEach(sentence => {
+      const start = para.text.indexOf(sentence);
+      if (start !== -1) {
+        sentenceInfo.right.get(para.index).push({
+          text: sentence,
+          start: start,
+          end: start + sentence.length
+        });
+      }
+    });
+  });
+  
+  // Helper functions
+  function calculateGlobalPosition(paragraphIndex, sentence, selectedParagraphs, fullParagraphs) {
+    let globalStart = 0;
+    for (let i = 0; i < selectedParagraphs.length; i++) {
+      if (selectedParagraphs[i] === paragraphIndex) {
+        const paragraphText = fullParagraphs[paragraphIndex];
+        const sentenceStart = paragraphText.indexOf(sentence);
+        globalStart += sentenceStart;
+        break;
+      }
+      globalStart += (fullParagraphs[selectedParagraphs[i]] || '').length + 1;
+    }
+    return globalStart;
+  }
+  
+  function calculateGlobalPositionForParagraph(paragraphIndex, selectedParagraphs, fullParagraphs) {
+    let globalStart = 0;
+    for (let i = 0; i < selectedParagraphs.length; i++) {
+      if (selectedParagraphs[i] === paragraphIndex) {
+        break;
+      }
+      globalStart += (fullParagraphs[selectedParagraphs[i]] || '').length + 1;
+    }
+    return globalStart;
+  }
+  
+  return {
+    diff: allDiffs,
     matchedSentences: matchedSentences,
     sentenceInfo: sentenceInfo,
     fuzzyMatchedPairs: fuzzyMatchedPairs

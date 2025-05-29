@@ -1,6 +1,6 @@
 {
   "name": "Differon",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "A natural language file comparison tool",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,14 @@
     "build-linux": "electron-builder --linux",
     "dist": "electron-builder"
   },
-  "keywords": ["electron", "diff", "nlp", "natural", "language", "compare"],
+  "keywords": [
+    "electron",
+    "diff",
+    "nlp",
+    "natural",
+    "language",
+    "compare"
+  ],
   "author": "Ron Pacheco",
   "license": "MIT",
   "devDependencies": {
@@ -18,7 +25,8 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
-    "compromise": "^14.13.0"
+    "compromise": "^14.13.0",
+    "diff": "^8.0.2"
   },
   "build": {
     "appId": "pub.wolfden.differon",
@@ -38,7 +46,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "icon": "build/icon.ico"
@@ -47,7 +58,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "build/icon.icns",
@@ -59,11 +73,15 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",

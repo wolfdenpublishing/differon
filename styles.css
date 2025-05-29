@@ -635,12 +635,14 @@ body {
 }
 
 .diff-part.sentence-deleted,
-.diff-part.fuzzy-deleted {
+.diff-part.fuzzy-deleted,
+.diff-part.patience-deleted {
     background: hsla(var(--left-hl-hue), 70%, 50%, var(--left-hl-intensity));
 }
 
 .diff-part.sentence-added,
-.diff-part.fuzzy-added {
+.diff-part.fuzzy-added,
+.diff-part.patience-added {
     background: hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity));
 }
 

@@ -22,22 +22,22 @@
         </button>
         <span class="toolbar-separator"></span>
         <div class="diff-mode-controls">
-            <label class="toolbar-label">Diff Mode:</label>
+            <label class="toolbar-label">Algorithm:</label>
             <div class="radio-group">
                 <label class="radio-label">
-                    <input type="radio" name="diffMode" value="sentence" checked>
-                    <span>Whole Sentence</span>
+                    <input type="radio" name="algorithm" value="sentence" checked>
+                    <span>Sentence</span>
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="diffMode" value="fuzzy">
-                    <span>Fuzzy Sentence</span>
+                    <input type="radio" name="algorithm" value="patience">
+                    <span>Patience</span>
                 </label>
             </div>
         </div>
-        <div class="fuzz-controls" id="fuzzControls" style="display: none;">
-            <label class="toolbar-label">Fuzz:</label>
-            <input type="range" id="fuzzSlider" min="0" max="10" value="5" class="fuzz-slider">
-            <span id="fuzzValue" class="fuzz-value">0.5</span>
+        <div class="fuzz-controls" id="fuzzControls">
+            <label class="toolbar-label">Fuzziness:</label>
+            <input type="range" id="fuzzSlider" min="0" max="10" value="0" class="fuzz-slider">
+            <span id="fuzzValue" class="fuzz-value">0.0</span>
         </div>
         <span class="toolbar-separator"></span>
         <div class="zoom-controls">
