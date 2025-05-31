@@ -169,6 +169,14 @@ function createWindow() {
 
   // Remove the application menu to reclaim vertical space
   mainWindow.removeMenu();
+  
+  // Enable F12 for DevTools and Ctrl+Shift+I
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || (input.control && input.shift && input.key === 'I')) {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 
   // Save window state on various events
   let saveTimeout;
@@ -363,6 +371,19 @@ function createWindow() {
     saveWindowState();
   });
 }
+
+// IPC handlers for console logging to stdout
+ipcMain.on('console-log', (event, ...args) => {
+  console.log('[Renderer]', ...args);
+});
+
+ipcMain.on('console-warn', (event, ...args) => {
+  console.warn('[Renderer]', ...args);
+});
+
+ipcMain.on('console-error', (event, ...args) => {
+  console.error('[Renderer]', ...args);
+});
 
 // IPC handlers for file operations
 ipcMain.handle('read-file', async (event, filePath) => {

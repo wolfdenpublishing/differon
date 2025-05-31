@@ -600,6 +600,75 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
+    // Override console methods to log to stdout
+    const originalConsole = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error
+    };
+    
+    // Helper to serialize objects for IPC
+    const serializeForIPC = (obj) => {
+        try {
+            // Try to clone the object to test if it's serializable
+            structuredClone(obj);
+            return obj;
+        } catch (e) {
+            // If not serializable, convert to string representation
+            if (obj instanceof Element) {
+                return `[DOM Element: ${obj.tagName}${obj.id ? '#' + obj.id : ''}${obj.className ? '.' + obj.className : ''}]`;
+            } else if (obj instanceof Event) {
+                return `[Event: ${obj.type} on ${obj.target?.tagName || 'unknown'}]`;
+            } else if (typeof obj === 'object' && obj !== null) {
+                // For other objects, create a safe representation
+                try {
+                    const safeObj = {};
+                    for (const key in obj) {
+                        if (obj.hasOwnProperty(key)) {
+                            const value = obj[key];
+                            if (value instanceof Element) {
+                                safeObj[key] = `[DOM Element: ${value.tagName}]`;
+                            } else if (value instanceof Event) {
+                                safeObj[key] = `[Event: ${value.type}]`;
+                            } else if (typeof value === 'function') {
+                                safeObj[key] = '[Function]';
+                            } else {
+                                try {
+                                    structuredClone(value);
+                                    safeObj[key] = value;
+                                } catch {
+                                    safeObj[key] = String(value);
+                                }
+                            }
+                        }
+                    }
+                    return safeObj;
+                } catch {
+                    return String(obj);
+                }
+            }
+            return obj;
+        }
+    };
+    
+    console.log = (...args) => {
+        originalConsole.log(...args);  // Still log to DevTools
+        const serializedArgs = args.map(serializeForIPC);
+        window.api.consoleLog(...serializedArgs);  // Log serialized version to stdout
+    };
+    
+    console.warn = (...args) => {
+        originalConsole.warn(...args);
+        const serializedArgs = args.map(serializeForIPC);
+        window.api.consoleWarn(...serializedArgs);
+    };
+    
+    console.error = (...args) => {
+        originalConsole.error(...args);
+        const serializedArgs = args.map(serializeForIPC);
+        window.api.consoleError(...serializedArgs);
+    };
+    
     // Convert all native tooltips to custom scalable tooltips
     convertAllTooltips();
     
@@ -1004,6 +1073,10 @@ function scrollToMatchingParagraph(fromSide, fromParagraphNum) {
 
 // Scroll to matching sentence in the other pane
 function scrollToMatchingSentence(fromSide, sentenceKey) {
+    // ===== SYNC DEBUG LOGGING START =====
+    // console.log('[DEBUG] scrollToMatchingSentence called:', { fromSide, sentenceKey });
+    // ===== SYNC DEBUG LOGGING END =====
+    
     let targetKey;
     let targetSide;
     
@@ -1015,22 +1088,112 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
         targetSide = 'left';
     }
     
+    // ===== SYNC DEBUG LOGGING START =====
+    /*
+    console.log('[DEBUG] Looking for target:', { 
+        targetKey, 
+        targetSide,
+        matchedSentencesSize: {
+            leftToRight: matchedSentences.leftToRight.size,
+            rightToLeft: matchedSentences.rightToLeft.size
+        }
+    });
+    */
+    // ===== SYNC DEBUG LOGGING END =====
+    
     if (targetKey) {
         // Find the sentence element by its key
         // Use querySelectorAll and find the matching one to handle special characters
         const allMatchedSentences = document.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence');
-        let targetElement = null;
-        for (const el of allMatchedSentences) {
+        
+        // ===== SYNC DEBUG LOGGING START =====
+        // console.log('[DEBUG] Total matched sentences found:', allMatchedSentences.length);
+        
+        // Debug: Check for duplicate keys
+        /*
+        const keyOccurrences = [];
+        allMatchedSentences.forEach(el => {
             if (el.dataset.sentenceKey === targetKey) {
+                keyOccurrences.push({
+                    side: el.dataset.side,
+                    parentId: el.closest('.paragraph')?.id,
+                    text: el.textContent.substring(0, 30) + '...'
+                });
+            }
+        });
+        
+        if (keyOccurrences.length > 1) {
+            console.warn('[DEBUG] Multiple elements found with same key:', targetKey, keyOccurrences);
+        }
+        */
+        // ===== SYNC DEBUG LOGGING END =====
+        
+        let targetElement = null;
+        // Find the element with the correct side
+        for (const el of allMatchedSentences) {
+            if (el.dataset.sentenceKey === targetKey && el.dataset.side === targetSide) {
                 targetElement = el;
                 break;
             }
         }
+        
+        // If no element found with correct side, log warning
+        // ===== SYNC DEBUG LOGGING START =====
+        /*
+        if (!targetElement && keyOccurrences.length > 0) {
+            console.warn('[DEBUG] No element found with correct side. Looking for side:', targetSide);
+            // Fall back to first occurrence (old behavior)
+            for (const el of allMatchedSentences) {
+                if (el.dataset.sentenceKey === targetKey) {
+                    targetElement = el;
+                    console.warn('[DEBUG] Using fallback element with side:', el.dataset.side);
+                    break;
+                }
+            }
+        }
+        */
+        // Note: The above fallback logic is still active, just the logging is commented out
+        if (!targetElement) {
+            // Fall back to first occurrence (old behavior)
+            for (const el of allMatchedSentences) {
+                if (el.dataset.sentenceKey === targetKey) {
+                    targetElement = el;
+                    break;
+                }
+            }
+        }
+        // ===== SYNC DEBUG LOGGING END =====
+        
+        // ===== SYNC DEBUG LOGGING START =====
+        /*
+        console.log('[DEBUG] Target element found:', {
+            found: !!targetElement,
+            targetKey,
+            elementInfo: targetElement ? {
+                className: targetElement.className,
+                datasetSentenceKey: targetElement.dataset.sentenceKey,
+                datasetSide: targetElement.dataset.side,
+                text: targetElement.textContent.substring(0, 50) + '...'
+            } : null
+        });
+        */
+        // ===== SYNC DEBUG LOGGING END =====
+        
         if (targetElement) {
             // Get the paragraph containing this sentence
             const targetParagraph = targetElement.closest('.paragraph');
             const targetEditor = document.getElementById(`${targetSide}Editor`);
             const targetContent = document.getElementById(`${targetSide}Content`);
+            
+            // ===== SYNC DEBUG LOGGING START =====
+            /*
+            console.log('[DEBUG] Elements found:', {
+                targetParagraph: !!targetParagraph,
+                targetEditor: !!targetEditor,
+                targetContent: !!targetContent
+            });
+            */
+            // ===== SYNC DEBUG LOGGING END =====
             
             if (targetParagraph && targetEditor && targetContent) {
                 // Calculate the position to scroll to
@@ -1043,6 +1206,17 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                 
                 // Scroll to center the sentence in view
                 const scrollPosition = offsetFromTop - (editorRect.height / 2) + (targetRect.height / 2);
+                
+                // ===== SYNC DEBUG LOGGING START =====
+                /*
+                console.log('[DEBUG] Scrolling:', {
+                    currentScrollTop: targetContent.scrollTop,
+                    newScrollPosition: scrollPosition,
+                    offsetFromTop
+                });
+                */
+                // ===== SYNC DEBUG LOGGING END =====
+                
                 targetContent.scrollTop = scrollPosition;
                 
                 // Briefly highlight the target sentence
@@ -1050,14 +1224,30 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                 const originalBg = targetElement.style.backgroundColor;
                 targetElement.style.backgroundColor = 'rgba(100, 100, 255, 0.5)';
                 
+                // ===== SYNC DEBUG LOGGING START =====
+                // console.log('[DEBUG] Highlighting target sentence');
+                // ===== SYNC DEBUG LOGGING END =====
+                
                 setTimeout(() => {
                     targetElement.style.backgroundColor = originalBg;
                     setTimeout(() => {
                         targetElement.style.transition = '';
                     }, 300);
                 }, 600);
+            } else {
+                // ===== SYNC DEBUG LOGGING START =====
+                // console.warn('[DEBUG] Missing required elements for scrolling');
+                // ===== SYNC DEBUG LOGGING END =====
             }
+        } else {
+            // ===== SYNC DEBUG LOGGING START =====
+            // console.warn('[DEBUG] Target element not found for key:', targetKey);
+            // ===== SYNC DEBUG LOGGING END =====
         }
+    } else {
+        // ===== SYNC DEBUG LOGGING START =====
+        // console.warn('[DEBUG] No target key found in matchedSentences map');
+        // ===== SYNC DEBUG LOGGING END =====
     }
 }
 
@@ -2053,7 +2243,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         });
         
         // Add click handlers to matched sentences
-        paragraphElement.querySelectorAll('.sentence-matched').forEach(sentence => {
+        paragraphElement.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence').forEach(sentence => {
             sentence.addEventListener('click', handleSentenceClick);
         });
     });
@@ -2072,17 +2262,43 @@ function handleDiffPartClick(event) {
 }
 
 function handleSentenceClick(event) {
+    // ===== SYNC DEBUG LOGGING START =====
+    // Uncomment the following block to enable sentence sync debugging
+    /*
+    console.log('[DEBUG] handleSentenceClick called', {
+        targetClasses: event.target.classList.toString(),
+        currentTargetClasses: event.currentTarget.classList.toString(),
+        sentenceKey: event.currentTarget.dataset.sentenceKey,
+        side: event.currentTarget.dataset.side,
+        targetTagName: event.target.tagName,
+        currentTargetTagName: event.currentTarget.tagName
+    });
+    */
+    // ===== SYNC DEBUG LOGGING END =====
+    
     // Don't handle sentence click if clicking on an inline diff part
     if (event.target.classList.contains('inline-diff-deleted') || 
         event.target.classList.contains('inline-diff-added')) {
+        // ===== SYNC DEBUG LOGGING START =====
+        // console.log('[DEBUG] Click on inline diff part, ignoring');
+        // ===== SYNC DEBUG LOGGING END =====
         return;
     }
     
     event.stopPropagation();
     const sentenceKey = event.currentTarget.dataset.sentenceKey;
     const side = event.currentTarget.dataset.side;
+    
+    // ===== SYNC DEBUG LOGGING START =====
+    // console.log('[DEBUG] Processing sentence click:', { sentenceKey, side });
+    // ===== SYNC DEBUG LOGGING END =====
+    
     if (sentenceKey && side) {
         scrollToMatchingSentence(side, sentenceKey);
+    } else {
+        // ===== SYNC DEBUG LOGGING START =====
+        // console.warn('[DEBUG] Missing sentenceKey or side:', { sentenceKey, side });
+        // ===== SYNC DEBUG LOGGING END =====
     }
 }
 

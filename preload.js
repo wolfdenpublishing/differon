@@ -35,5 +35,9 @@ contextBridge.exposeInMainWorld('api', {
   // App info - these will be filled by main process
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   // Config
-  getConfig: () => ipcRenderer.invoke('get-config')
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  // Console logging to stdout
+  consoleLog: (...args) => ipcRenderer.send('console-log', ...args),
+  consoleWarn: (...args) => ipcRenderer.send('console-warn', ...args),
+  consoleError: (...args) => ipcRenderer.send('console-error', ...args)
 });
