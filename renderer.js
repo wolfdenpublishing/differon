@@ -725,6 +725,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupKeyboardShortcuts();
     setupTabControls();
     
+    // Add copy event listener to deselect text after copy
+    document.addEventListener('copy', (e) => {
+        // Clear selection after copy
+        setTimeout(() => {
+            window.getSelection().removeAllRanges();
+        }, 10);
+    });
+    
     // Load saved state or create default tabs
     window.api.onRestoreState(async () => {
         const loaded = await loadSavedState();
@@ -2887,6 +2895,11 @@ function setupKeyboardShortcuts() {
             } else if (leftPane.contains(focusedElement) && activeTab.left) {
                 closeTab('left', activeTab.left);
             }
+        }
+        // Handle Escape key to clear text selection
+        else if (e.key === 'Escape') {
+            e.preventDefault();
+            window.getSelection().removeAllRanges();
         }
         // Handle Ctrl+Tab / Ctrl+Shift+Tab for tab cycling
         else if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
