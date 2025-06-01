@@ -484,6 +484,18 @@ ipcMain.handle('diff-paragraph', async (event, leftText, rightText) => {
 
 // Enhanced sentence mode diff handler - process paragraphs individually
 ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText) => {
+  // ===== SENTENCE DIFF DEBUG LOGGING START =====
+  // Uncomment the following block to enable sentence diff debugging
+  /*
+  // Force immediate output
+  process.stdout.write('\n[MAIN PROCESS] diff-sentence handler called\n');
+  process.stderr.write('[MAIN PROCESS STDERR] diff-sentence handler called\n');
+  console.log('\n[MAIN PROCESS] diff-sentence handler called');
+  console.log('[MAIN PROCESS] Left paragraphs:', leftSelectedParagraphs);
+  console.log('[MAIN PROCESS] Right paragraphs:', rightSelectedParagraphs);
+  */
+  // ===== SENTENCE DIFF DEBUG LOGGING END =====
+  
   // Use full text if provided, otherwise parse from selected text
   const leftText = leftFullText || leftSelectedText;
   const rightText = rightFullText || rightSelectedText;
@@ -634,12 +646,51 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
   let oU = 0; // First unprocessed sentence in original (0-indexed)
   let rU = 0; // First unprocessed sentence in revised (0-indexed)
   
+  // ===== SENTENCE DIFF DEBUG LOGGING START =====
+  /*
+  // Debug: Log sentence matching process
+  console.log('[SENTENCE DIFF DEBUG] Starting sentence matching...');
+  console.log('[SENTENCE DIFF DEBUG] Total left sentences:', allLeftSentences.length);
+  console.log('[SENTENCE DIFF DEBUG] Total right sentences:', allRightSentences.length);
+  
+  // Debug: Show sentences from fuzzy matched paragraphs
+  console.log('[SENTENCE DIFF DEBUG] Left sentences by paragraph:');
+  leftSentencesByParagraph.forEach(para => {
+    if (para.sentences.length > 0) {
+      console.log(`  Paragraph ${para.paragraphIndex}: ${para.sentences.length} sentences`);
+      para.sentences.forEach((sent, idx) => {
+        console.log(`    [${idx}]: "${sent.substring(0, 50)}..."`);
+      });
+    }
+  });
+  
+  console.log('[SENTENCE DIFF DEBUG] Right sentences by paragraph:');
+  rightSentencesByParagraph.forEach(para => {
+    if (para.sentences.length > 0) {
+      console.log(`  Paragraph ${para.paragraphIndex}: ${para.sentences.length} sentences`);
+      para.sentences.forEach((sent, idx) => {
+        console.log(`    [${idx}]: "${sent.substring(0, 50)}..."`);
+      });
+    }
+  });
+  */
+  // ===== SENTENCE DIFF DEBUG LOGGING END =====
+  
   while (oU < allLeftSentences.length) {
     let found = false;
+    
+    // ===== SENTENCE DIFF DEBUG LOGGING START =====
+    // console.log(`[SENTENCE DIFF DEBUG] Looking for match for left sentence ${oU}: "${allLeftSentences[oU].sentence}" (paragraph ${allLeftSentences[oU].paragraphIndex})`);
+    // ===== SENTENCE DIFF DEBUG LOGGING END =====
     
     // Look for exact match in remaining revised sentences
     for (let i = rU; i < allRightSentences.length; i++) {
       if (allRightSentences[i].sentence === allLeftSentences[oU].sentence) {
+        // ===== SENTENCE DIFF DEBUG LOGGING START =====
+        // console.log(`[SENTENCE DIFF DEBUG] Found exact match at right sentence ${i}: "${allRightSentences[i].sentence}" (paragraph ${allRightSentences[i].paragraphIndex})`);
+        // console.log(`[SENTENCE DIFF DEBUG] Left paragraph ${allLeftSentences[oU].paragraphIndex} -> Right paragraph ${allRightSentences[i].paragraphIndex}`);
+        // ===== SENTENCE DIFF DEBUG LOGGING END =====
+        
         // Found exact match
         // Store the matching relationship
         matchedSentences.leftToRight.set(
@@ -679,6 +730,10 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
     }
     
     if (!found) {
+      // ===== SENTENCE DIFF DEBUG LOGGING START =====
+      // console.log(`[SENTENCE DIFF DEBUG] No match found for left sentence ${oU}: "${allLeftSentences[oU].sentence}" - marking as deleted`);
+      // ===== SENTENCE DIFF DEBUG LOGGING END =====
+      
       // No match found - mark original sentence as deleted
       diff.push({
         value: allLeftSentences[oU].sentence,
@@ -762,6 +817,27 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
     // Unchanged sentences don't need position info for highlighting
   }
   
+  // ===== SENTENCE DIFF DEBUG LOGGING START =====
+  /*
+  // Debug: Log final results
+  console.log('[SENTENCE DIFF DEBUG] Final matched sentences:');
+  console.log('  leftToRight mappings:', matchedSentences.leftToRight.size);
+  matchedSentences.leftToRight.forEach((value, key) => {
+    console.log(`    "${key}" -> "${value}"`);
+  });
+  console.log('  rightToLeft mappings:', matchedSentences.rightToLeft.size);
+  
+  console.log('[SENTENCE DIFF DEBUG] Positioned diff items:', positionedDiff.length);
+  positionedDiff.forEach((item, idx) => {
+    if (item.removed) {
+      console.log(`  [${idx}] REMOVED: "${item.value.substring(0, 40)}..."`);
+    } else if (item.added) {
+      console.log(`  [${idx}] ADDED: "${item.value.substring(0, 40)}..."`);
+    }
+  });
+  */
+  // ===== SENTENCE DIFF DEBUG LOGGING END =====
+  
   return { 
     diff: positionedDiff, 
     matchedSentences: matchedSentences,
@@ -771,6 +847,19 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
 
 // Enhanced fuzzy sentence mode diff handler
 ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText, matchThreshold) => {
+  // ===== SENTENCE DIFF DEBUG LOGGING START =====
+  // Uncomment the following block to enable sentence diff debugging
+  /*
+  // Force immediate output
+  process.stdout.write('\n[MAIN PROCESS] diff-fuzzy-sentence handler called\n');
+  process.stderr.write('[MAIN PROCESS STDERR] diff-fuzzy-sentence handler called\n');
+  console.log('\n[MAIN PROCESS] diff-fuzzy-sentence handler called');
+  console.log('[MAIN PROCESS] Left paragraphs:', leftSelectedParagraphs);
+  console.log('[MAIN PROCESS] Right paragraphs:', rightSelectedParagraphs);
+  console.log('[MAIN PROCESS] Match threshold:', matchThreshold);
+  */
+  // ===== SENTENCE DIFF DEBUG LOGGING END =====
+  
   // Use full text if provided, otherwise parse from selected text
   const leftText = leftFullText || leftSelectedText;
   const rightText = rightFullText || rightSelectedText;
@@ -951,6 +1040,15 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     });
   });
   
+  // ===== SENTENCE DIFF DEBUG LOGGING START =====
+  /*
+  // Debug: Log sentence extraction
+  console.log('[FUZZY SENTENCE DEBUG] Total left sentences:', allLeftSentences.length);
+  console.log('[FUZZY SENTENCE DEBUG] Total right sentences:', allRightSentences.length);
+  console.log('[FUZZY SENTENCE DEBUG] Match threshold:', matchThreshold);
+  */
+  // ===== SENTENCE DIFF DEBUG LOGGING END =====
+  
   // Apply fuzzy matching algorithm
   const diff = [];
   const matchedSentences = {
@@ -1004,10 +1102,14 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     let fuzzyMatchIndex = -1;
     let bestSimilarity = 0;
     
-    // First look for exact match
-    for (let i = rU; i < allRightSentences.length; i++) {
+    // First look for exact match in ALL remaining sentences, not just from rU
+    for (let i = 0; i < allRightSentences.length; i++) {
       if (!rightUsed.has(i) && allRightSentences[i].sentence === allLeftSentences[oU].sentence) {
         // Found exact match
+        // ===== SENTENCE DIFF DEBUG LOGGING START =====
+        // console.log(`[FUZZY DEBUG] Found exact match: "${allLeftSentences[oU].sentence.substring(0, 40)}..." (L:${allLeftSentences[oU].paragraphIndex} -> R:${allRightSentences[i].paragraphIndex})`);
+        // ===== SENTENCE DIFF DEBUG LOGGING END =====
+        
         rightUsed.add(i);
         
         // Store the matching relationship
@@ -1020,19 +1122,7 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
           `${allLeftSentences[oU].paragraphIndex}:${allLeftSentences[oU].sentence}`
         );
         
-        // Add all unmatched right sentences before this as added
-        for (let j = rU; j < i; j++) {
-          if (!rightUsed.has(j)) {
-            diff.push({
-              value: allRightSentences[j].sentence,
-              added: true,
-              removed: false,
-              paragraphIndex: allRightSentences[j].paragraphIndex,
-              paragraphText: allRightSentences[j].paragraphText
-            });
-            rightUsed.add(j);
-          }
-        }
+        // Don't add sentences as "added" here - we'll handle them at the end
         
         // Add the matching sentence as unchanged
         diff.push({
@@ -1051,7 +1141,11 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     
     // If no exact match, look for fuzzy match
     if (!found) {
-      for (let i = rU; i < allRightSentences.length; i++) {
+      // ===== SENTENCE DIFF DEBUG LOGGING START =====
+      // console.log(`[FUZZY DEBUG] No exact match for: "${allLeftSentences[oU].sentence.substring(0, 40)}..." from paragraph ${allLeftSentences[oU].paragraphIndex}`);
+      // ===== SENTENCE DIFF DEBUG LOGGING END =====
+      
+      for (let i = 0; i < allRightSentences.length; i++) {
         if (!rightUsed.has(i)) {
           const similarity = calculateSimilarity(allLeftSentences[oU].sentence, allRightSentences[i].sentence);
           if (similarity >= matchThreshold && similarity > bestSimilarity) {
@@ -1066,19 +1160,7 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
         // Found fuzzy match
         rightUsed.add(fuzzyMatchIndex);
         
-        // Add all unmatched right sentences before this as added
-        for (let j = rU; j < fuzzyMatchIndex; j++) {
-          if (!rightUsed.has(j)) {
-            diff.push({
-              value: allRightSentences[j].sentence,
-              added: true,
-              removed: false,
-              paragraphIndex: allRightSentences[j].paragraphIndex,
-              paragraphText: allRightSentences[j].paragraphText
-            });
-            rightUsed.add(j);
-          }
-        }
+        // Don't add sentences as "added" here - we'll handle them at the end
         
         // Store fuzzy matched pair with word diff
         const wordDiff = getWordDiff(allLeftSentences[oU].sentence, fuzzyMatch.sentence);

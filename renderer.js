@@ -181,6 +181,12 @@ let fuzzyMatchedPairs = [];
 // Track if CTRL is held
 let ctrlHeld = false;
 
+// Store change bar data for paragraphs
+let paragraphChangeBars = {
+    left: new Map(),
+    right: new Map()
+};
+
 // Maximum number of tabs per side
 const MAX_TABS = 20;
 
@@ -1021,6 +1027,55 @@ async function runParagraphDiff() {
     });
 }
 
+// Add clickable change bar to fuzzy matched paragraph
+function addChangeBar(paragraphElement, side, matchData) {
+    // Store change bar data for this paragraph
+    paragraphChangeBars[side].set(matchData.fromIndex, matchData);
+    
+    // Remove any existing change bar
+    const existingBar = paragraphElement.querySelector('.change-bar');
+    if (existingBar) {
+        existingBar.remove();
+    }
+    
+    // Create change bar element
+    const changeBar = document.createElement('div');
+    changeBar.className = 'change-bar';
+    changeBar.dataset.side = side;
+    changeBar.dataset.paragraphIndex = matchData.fromIndex;
+    changeBar.dataset.matchedIndex = matchData.toIndex;
+    changeBar.dataset.similarity = matchData.similarity;
+    
+    // Apply the same alpha value as the paragraph
+    changeBar.style.setProperty('--paragraph-match-alpha', matchData.similarity);
+    
+    // Add tooltip
+    const tooltipText = `Fuzzy match (${Math.round(matchData.similarity * 100)}% similar) - Click to sync`;
+    addCustomTooltip(changeBar, tooltipText);
+    
+    // Add click handler
+    changeBar.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(this.dataset.paragraphIndex);
+        if (!isNaN(idx)) {
+            scrollToMatchingParagraph(side, idx);
+        }
+    });
+    
+    // Add to paragraph
+    paragraphElement.style.position = 'relative';
+    paragraphElement.appendChild(changeBar);
+}
+
+// Restore change bar after innerHTML is replaced
+function restoreChangeBar(paragraphElement, side, paragraphIndex) {
+    const changeBarData = paragraphChangeBars[side].get(paragraphIndex);
+    if (changeBarData) {
+        addChangeBar(paragraphElement, side, changeBarData);
+    }
+}
+
 // Scroll to matching paragraph in the other pane
 function scrollToMatchingParagraph(fromSide, fromParagraphNum) {
     let targetParagraphNum;
@@ -1261,6 +1316,13 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
 
 // Clear all paragraph change markers
 function clearParagraphMarkers() {
+    // Clear stored change bar data
+    paragraphChangeBars.left.clear();
+    paragraphChangeBars.right.clear();
+    
+    // Remove all change bar elements
+    document.querySelectorAll('.change-bar').forEach(bar => bar.remove());
+    
     document.querySelectorAll('.paragraph-changed').forEach(el => {
         el.classList.remove('paragraph-changed', 'paragraph-deleted', 'paragraph-added');
     });
@@ -1658,6 +1720,10 @@ function clearAll() {
 }
 
 async function performComparison() {
+    // ===== SENTENCE DIFF DEBUG LOGGING START =====
+    // console.error('[PERFORMANCE DEBUG] performComparison called');
+    // ===== SENTENCE DIFF DEBUG LOGGING END =====
+    
     const leftDoc = getActiveDocument('left');
     const rightDoc = getActiveDocument('right');
     
@@ -1693,6 +1759,15 @@ async function performComparison() {
     const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
 
     try {
+        // ===== SENTENCE DIFF DEBUG LOGGING START =====
+        /*
+        console.error('[COMPARISON DEBUG] paragraphMatchingEnabled:', paragraphMatchingEnabled);
+        console.error('[COMPARISON DEBUG] sentenceMatchingEnabled:', sentenceMatchingEnabled);
+        console.error('[COMPARISON DEBUG] sentenceAlgorithm:', sentenceAlgorithm);
+        console.error('[COMPARISON DEBUG] sentenceFuzziness:', sentenceFuzziness);
+        */
+        // ===== SENTENCE DIFF DEBUG LOGGING END =====
+        
         let paragraphResult = null;
         let sentenceResult = null;
         
@@ -1749,7 +1824,24 @@ async function performComparison() {
             switch (sentenceAlgorithm) {
                 case 'thomas':
                     if (sentenceFuzziness < 0.01) {
+                        // ===== SENTENCE DIFF DEBUG LOGGING START =====
+                        /*
+                        console.error('[RENDERER DEBUG] Calling diffSentence with:', {
+                            leftParagraphs: paragraphsToProcess.left,
+                            rightParagraphs: paragraphsToProcess.right,
+                            sentenceFuzziness: sentenceFuzziness
+                        });
+                        */
+                        // ===== SENTENCE DIFF DEBUG LOGGING END =====
                         const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content);
+                        // ===== SENTENCE DIFF DEBUG LOGGING START =====
+                        /*
+                        console.error('[RENDERER DEBUG] diffSentence result:', {
+                            diffLength: result.diff ? result.diff.length : 0,
+                            matchedSentencesSize: result.matchedSentences ? result.matchedSentences.leftToRight.size : 0
+                        });
+                        */
+                        // ===== SENTENCE DIFF DEBUG LOGGING END =====
                         diff = result.diff;
                         matchedSentences = result.matchedSentences;
                         currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
@@ -1904,6 +1996,8 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 // Apply variable alpha to change bar
                 leftElement.style.setProperty('--paragraph-match-alpha', alpha);
                 
+                let currentElement = leftElement;
+                
                 // Only make clickable if sentence matching is disabled
                 if (!sentenceMatchingEnabled) {
                     leftElement.style.cursor = 'pointer';
@@ -1912,6 +2006,7 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                     
                     const newLeftElement = leftElement.cloneNode(true);
                     leftElement.parentNode.replaceChild(newLeftElement, leftElement);
+                    currentElement = newLeftElement;
                     
                     // Add custom tooltip
                     addCustomTooltip(newLeftElement, `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`);
@@ -1925,6 +2020,13 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                         }
                     }, true);
                 }
+                
+                // Always add clickable change bar for fuzzy matches (even when sentence matching is enabled)
+                addChangeBar(currentElement, 'left', {
+                    fromIndex: match.left,
+                    toIndex: match.right,
+                    similarity: match.similarity
+                });
             }
         }
         
@@ -1935,6 +2037,8 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                 // Apply variable alpha to change bar
                 rightElement.style.setProperty('--paragraph-match-alpha', alpha);
                 
+                let currentElement = rightElement;
+                
                 // Only make clickable if sentence matching is disabled
                 if (!sentenceMatchingEnabled) {
                     rightElement.style.cursor = 'pointer';
@@ -1943,6 +2047,7 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                     
                     const newRightElement = rightElement.cloneNode(true);
                     rightElement.parentNode.replaceChild(newRightElement, rightElement);
+                    currentElement = newRightElement;
                     
                     // Add custom tooltip
                     addCustomTooltip(newRightElement, `Fuzzy match (${Math.round(match.similarity * 100)}% similar) - Click to sync`);
@@ -1956,6 +2061,13 @@ function applyParagraphChangeBars(paragraphResult, leftSelectedParagraphs, right
                         }
                     }, true);
                 }
+                
+                // Always add clickable change bar for fuzzy matches (even when sentence matching is enabled)
+                addChangeBar(currentElement, 'right', {
+                    fromIndex: match.right,
+                    toIndex: match.left,
+                    similarity: match.similarity
+                });
             }
         }
     });
@@ -2170,6 +2282,9 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         
         paragraphElement.innerHTML = html || '&nbsp;';
         
+        // Restore change bar if it existed
+        restoreChangeBar(paragraphElement, 'left', paragraphNum);
+        
         // Add click handlers to all diff parts
         paragraphElement.querySelectorAll('.diff-part').forEach(part => {
             part.addEventListener('click', handleDiffPartClick);
@@ -2244,6 +2359,9 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         }
         
         paragraphElement.innerHTML = html || '&nbsp;';
+        
+        // Restore change bar if it existed
+        restoreChangeBar(paragraphElement, 'right', paragraphNum);
         
         // Add click handlers to all diff parts
         paragraphElement.querySelectorAll('.diff-part').forEach(part => {

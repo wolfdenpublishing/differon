@@ -739,6 +739,11 @@ body {
     );
 }
 
+/* Hide pseudo-element change bar when DOM element exists */
+.paragraph.paragraph-fuzzy-matched:has(.change-bar)::before {
+    display: none;
+}
+
 /* Matched paragraph styling */
 .paragraph.paragraph-matched {
     cursor: pointer;
@@ -747,6 +752,48 @@ body {
 
 .paragraph.paragraph-matched:hover {
     background: rgba(100, 100, 100, 0.1);
+}
+
+/* Don't change background when hovering over change bar */
+.paragraph.paragraph-matched:has(.change-bar:hover) {
+    background: inherit;
+}
+
+/* Clickable change bar element for fuzzy matches */
+.change-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    cursor: pointer;
+    z-index: 100;
+    transition: width 0.2s ease;
+}
+
+.paragraph-deleted .change-bar {
+    background: repeating-linear-gradient(
+        to bottom,
+        hsla(var(--left-hl-hue), 70%, 50%, var(--left-hl-intensity)) 0,
+        hsla(var(--left-hl-hue), 70%, 50%, var(--left-hl-intensity)) calc(6px * var(--paragraph-match-alpha, 1)),
+        transparent calc(6px * var(--paragraph-match-alpha, 1)),
+        transparent 6px
+    );
+}
+
+.paragraph-added .change-bar {
+    background: repeating-linear-gradient(
+        to bottom,
+        hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity)) 0,
+        hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity)) calc(6px * var(--paragraph-match-alpha, 1)),
+        transparent calc(6px * var(--paragraph-match-alpha, 1)),
+        transparent 6px
+    );
+}
+
+.change-bar:hover {
+    width: 6px;
+    opacity: 0.8;
 }
 
 /* Show sync icon on hover */
