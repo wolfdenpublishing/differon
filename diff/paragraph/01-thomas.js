@@ -197,8 +197,8 @@ class ThomasParagraphAlgorithm extends DiffAlgorithm {
         }
         leftPos++;
         rightPos++;
-      } else if (!rightMatch || (leftMatch && leftMatch.index > rightPos)) {
-        // Right paragraph was removed or moved
+      } else if (leftPos >= leftParagraphs.length) {
+        // No more left paragraphs, process remaining right
         if (rightPos < rightParagraphs.length) {
           diff.push({
             value: rightParagraphs[rightPos],
@@ -208,8 +208,8 @@ class ThomasParagraphAlgorithm extends DiffAlgorithm {
           });
         }
         rightPos++;
-      } else {
-        // Left paragraph was removed or moved
+      } else if (rightPos >= rightParagraphs.length) {
+        // No more right paragraphs, process remaining left
         if (leftPos < leftParagraphs.length) {
           diff.push({
             value: leftParagraphs[leftPos],
@@ -218,6 +218,24 @@ class ThomasParagraphAlgorithm extends DiffAlgorithm {
             side: 'left'
           });
         }
+        leftPos++;
+      } else if (!rightMatch || (leftMatch && leftMatch.index > rightPos)) {
+        // Right paragraph was removed or moved
+        diff.push({
+          value: rightParagraphs[rightPos],
+          added: true,
+          paragraphIndex: rightPos,
+          side: 'right'
+        });
+        rightPos++;
+      } else {
+        // Left paragraph was removed or moved
+        diff.push({
+          value: leftParagraphs[leftPos],
+          removed: true,
+          paragraphIndex: leftPos,
+          side: 'left'
+        });
         leftPos++;
       }
     }
