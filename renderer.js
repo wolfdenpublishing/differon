@@ -144,8 +144,8 @@ class ToolbarScaler {
         this.toolbars = new Map();
         this.resizeObserver = null;
         this.checkTimeout = null;
-        this.MIN_SCALE = 0.5;
-        this.BUFFER_FACTOR = 0.98;
+        this.MIN_SCALE = 0.7;
+        this.BUFFER_FACTOR = 0.95; // Less aggressive buffer for tighter fit
     }
     
     init() {
@@ -203,7 +203,7 @@ class ToolbarScaler {
         if (!container) return 1.0;
         
         // Account for padding in the container
-        const containerPadding = 32; // 16px on each side
+        const containerPadding = 36; // 16px padding + 2px buffer on each side
         const availableWidth = container.clientWidth - containerPadding;
         
         // Get the natural width of all controls
@@ -844,7 +844,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await populateAlgorithms();
     setupDiffModeControls();
     setupCopyTooltip();
-    setupPaneClearButtons();
     setupSelectAllControls();
     setupStatusBar();
     setupCtrlTracking();
@@ -1713,40 +1712,6 @@ function setupStrikethroughControl() {
     });
 }
 
-function setupPaneClearButtons() {
-    document.getElementById('leftClearBtn').addEventListener('click', () => clearPane('left'));
-    document.getElementById('rightClearBtn').addEventListener('click', () => clearPane('right'));
-}
-
-function clearPane(side) {
-    const doc = getActiveDocument(side);
-    if (!doc) return;
-    
-    // Clear document content
-    doc.content = '';
-    doc.filePath = '';
-    doc.scrollTop = 0;
-    doc.selectedParagraphs.clear();
-    doc.isModified = false;
-    doc.pastedTimestamp = null; // Clear timestamp too
-    
-    // Update tab title
-    updateTabTitle(side, doc.tabId, '(empty)', false);
-    
-    // Update display
-    displayDocument(side, doc);
-    
-    // Clear any highlights
-    clearComparison();
-    
-    // Clear paragraph markers since we may no longer have two documents
-    clearParagraphMarkers();
-    
-    // Uncheck select all
-    document.getElementById(`${side}SelectAll`).checked = false;
-    
-    saveState();
-}
 
 function clearAll() {
     // Clear highlighting

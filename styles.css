@@ -453,8 +453,9 @@ body {
 .pane-controls-wrapper {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px; /* Reduced gap for tighter spacing */
     height: 100%;
+    width: 100%; /* Take full width */
     
     /* Ensure smooth scaling */
     transition: transform 0.2s ease;
@@ -475,11 +476,11 @@ body {
 }
 
 .select-all-container {
-    position: absolute;
-    left: 8px; /* Position 8px from left edge, matching paragraph checkboxes */
     display: flex;
     align-items: center;
     height: 100%;
+    margin-left: -8px; /* Negative margin to align with paragraph checkboxes */
+    margin-right: 4px; /* Small right margin */
 }
 
 .select-all-checkbox {
@@ -490,13 +491,13 @@ body {
     width: 1px;
     height: 20px;
     background: #3e3e42;
-    margin-left: 30px; /* Account for absolutely positioned checkbox */
+    margin: 0; /* Remove margin - gap handles spacing */
 }
 
 .color-controls {
     display: flex;
-    gap: 16px;
-    flex: 1;
+    gap: 8px; /* Reduced to match separator spacing */
+    align-items: center; /* Ensure vertical alignment */
 }
 
 .color-control-group {
@@ -508,7 +509,7 @@ body {
 .color-control-group label {
     font-size: 11px;
     color: #858585;
-    min-width: 24px;
+    min-width: 16px; /* Reduced to bring label closer to control */
 }
 
 .color-slider {
@@ -563,29 +564,12 @@ body {
     background: #4e4e52;
 }
 
-.pane-clear-btn {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #3e3e42;
-    border: none;
-    border-radius: 4px;
-    color: #cccccc;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.pane-clear-btn:hover {
-    background: #4e4e52;
-}
 
 /* Strikethrough control styling */
 .strikethrough-control {
     display: inline-flex;
     align-items: center;
-    margin: 0 10px;
+    margin: 0; /* Remove margin - gap handles spacing */
     cursor: pointer;
     font-size: 12px;
     color: #ccc;
