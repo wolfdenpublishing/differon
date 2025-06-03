@@ -460,7 +460,81 @@ async function showInput(message, title = 'Input', defaultValue = '', placeholde
     return dialog.show();
 }
 
+/**
+ * Progress Dialog for long-running operations
+ */
+class ProgressDialog extends Dialog {
+    constructor(options) {
+        super({
+            title: 'Compare in Progress',
+            message: 'Compare algorithms processing... please wait.',
+            type: 'progress',
+            icon: 'icons/fluent--timer-16-regular.svg',
+            ...options
+        });
+    }
+    
+    create() {
+        // Call parent create method to set up the basic dialog structure
+        super.create();
+        
+        // Remove the footer that parent added (we don't need buttons)
+        const footer = this.dialog.querySelector('.dialog-footer');
+        if (footer) {
+            footer.remove();
+        }
+        
+        // Replace the body content with progress animation
+        const body = this.dialog.querySelector('.dialog-body');
+        if (body) {
+            body.classList.add('dialog-progress');
+            body.innerHTML = ''; // Clear any existing content
+            
+            // Create spinner
+            const spinner = document.createElement('div');
+            spinner.className = 'progress-spinner';
+            body.appendChild(spinner);
+            
+            // Create message
+            const message = document.createElement('p');
+            message.className = 'progress-message';
+            message.textContent = this.options.message;
+            body.appendChild(message);
+        }
+    }
+    
+    handleKeyDown(e) {
+        // Don't allow ESC to close progress dialog
+        if (e.key === 'Escape') {
+            e.preventDefault();
+        }
+    }
+    
+    handleOverlayClick(e) {
+        // Don't allow clicking overlay to close progress dialog
+        e.preventDefault();
+    }
+    
+    updateMessage(newMessage) {
+        const messageElement = this.dialog.querySelector('.progress-message');
+        if (messageElement) {
+            messageElement.textContent = newMessage;
+        }
+    }
+    
+    close() {
+        // Use parent's hide method to properly close the dialog
+        this.hide();
+    }
+}
+
+function showProgressDialog(options = {}) {
+    const dialog = new ProgressDialog(options);
+    dialog.show(); // Show the dialog but don't return the promise
+    return dialog; // Return the dialog instance so it can be closed
+}
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { showInfo, showConfirm, showYesNo, showInput };
+    module.exports = { showInfo, showConfirm, showYesNo, showInput, showProgressDialog };
 }

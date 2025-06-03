@@ -61,11 +61,15 @@
                     <span>Thomas</span>
                 </label>
                 <label class="radio-label">
+                    <input type="radio" name="sentenceAlgorithm" value="patience">
+                    <span>Patience</span>
+                </label>
+                <label class="radio-label">
                     <input type="radio" name="sentenceAlgorithm" value="levenshtein" disabled>
                     <span>Levenshtein</span>
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="sentenceAlgorithm" value="character" disabled>
+                    <input type="radio" name="sentenceAlgorithm" value="character">
                     <span>Character</span>
                 </label>
             </div>
@@ -102,34 +106,41 @@
                 </div>
             </div>
             <div class="pane-controls">
-                <div class="select-all-container">
-                    <input type="checkbox" id="leftSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
-                </div>
-                <span class="control-separator"></span>
-                <div class="color-controls">
-                    <div class="color-control-group">
-                        <label>BG:</label>
-                        <input type="range" id="leftBgColor" min="0" max="360" value="0" class="color-slider">
-                        <input type="range" id="leftBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                <div class="pane-controls-wrapper">
+                    <div class="select-all-container">
+                        <input type="checkbox" id="leftSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
                     </div>
-                    <div class="color-control-group">
-                        <label>HL:</label>
-                        <input type="range" id="leftHlColor" min="0" max="360" value="0" class="color-slider">
-                        <input type="range" id="leftHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                    <span class="control-separator"></span>
+                    <div class="color-controls">
+                        <div class="color-control-group">
+                            <label>BG:</label>
+                            <input type="range" id="leftBgColor" min="0" max="360" value="0" class="color-slider">
+                            <input type="range" id="leftBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                        </div>
+                        <div class="color-control-group">
+                            <label>HL:</label>
+                            <input type="range" id="leftHlColor" min="0" max="360" value="0" class="color-slider">
+                            <input type="range" id="leftHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                        </div>
+                        <button id="leftColorReset" class="color-reset-btn" title="Reset colors to default">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                        </button>
                     </div>
-                    <button id="leftColorReset" class="color-reset-btn" title="Reset colors to default">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="1 4 1 10 7 10"></polyline>
-                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    <span class="control-separator"></span>
+                    <label class="strikethrough-control">
+                        <input type="checkbox" id="leftStrikethrough" checked>
+                        <span class="strikethrough-label">Strikethrough</span>
+                    </label>
+                    <button id="leftClearBtn" class="pane-clear-btn" title="Clear document">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </button>
                 </div>
-                <button id="leftClearBtn" class="pane-clear-btn" title="Clear document">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
             </div>
             <div class="drop-zone" id="leftDrop">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -185,34 +196,36 @@
                 </div>
             </div>
             <div class="pane-controls">
-                <div class="select-all-container">
-                    <input type="checkbox" id="rightSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
-                </div>
-                <span class="control-separator"></span>
-                <div class="color-controls">
-                    <div class="color-control-group">
-                        <label>BG:</label>
-                        <input type="range" id="rightBgColor" min="0" max="360" value="120" class="color-slider">
-                        <input type="range" id="rightBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                <div class="pane-controls-wrapper">
+                    <div class="select-all-container">
+                        <input type="checkbox" id="rightSelectAll" class="select-all-checkbox" title="Select/Deselect all paragraphs">
                     </div>
-                    <div class="color-control-group">
-                        <label>HL:</label>
-                        <input type="range" id="rightHlColor" min="0" max="360" value="120" class="color-slider">
-                        <input type="range" id="rightHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                    <span class="control-separator"></span>
+                    <div class="color-controls">
+                        <div class="color-control-group">
+                            <label>BG:</label>
+                            <input type="range" id="rightBgColor" min="0" max="360" value="120" class="color-slider">
+                            <input type="range" id="rightBgIntensity" min="5" max="40" value="20" class="intensity-slider">
+                        </div>
+                        <div class="color-control-group">
+                            <label>HL:</label>
+                            <input type="range" id="rightHlColor" min="0" max="360" value="120" class="color-slider">
+                            <input type="range" id="rightHlIntensity" min="20" max="60" value="40" class="intensity-slider">
+                        </div>
+                        <button id="rightColorReset" class="color-reset-btn" title="Reset colors to default">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                        </button>
                     </div>
-                    <button id="rightColorReset" class="color-reset-btn" title="Reset colors to default">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="1 4 1 10 7 10"></polyline>
-                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    <button id="rightClearBtn" class="pane-clear-btn" title="Clear document">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </button>
                 </div>
-                <button id="rightClearBtn" class="pane-clear-btn" title="Clear document">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
             </div>
             <div class="drop-zone" id="rightDrop">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

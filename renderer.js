@@ -138,6 +138,118 @@ let activeTab = {
     right: null
 };
 
+// Toolbar scaling manager to prevent control overflow at high zoom levels
+class ToolbarScaler {
+    constructor() {
+        this.toolbars = new Map();
+        this.resizeObserver = null;
+        this.checkTimeout = null;
+        this.MIN_SCALE = 0.5;
+        this.BUFFER_FACTOR = 0.98;
+    }
+    
+    init() {
+        // Set up observers for both toolbars
+        this.observeToolbar('left');
+        this.observeToolbar('right');
+        
+        // Set up global resize observer
+        this.setupResizeObserver();
+        
+        // Initial check
+        this.checkAllToolbars();
+    }
+    
+    observeToolbar(side) {
+        const wrapper = document.querySelector(`#${side}Pane .pane-controls-wrapper`);
+        if (wrapper) {
+            this.toolbars.set(side, wrapper);
+        }
+    }
+    
+    setupResizeObserver() {
+        this.resizeObserver = new ResizeObserver(() => {
+            // Debounce resize events
+            clearTimeout(this.checkTimeout);
+            this.checkTimeout = setTimeout(() => {
+                this.checkAllToolbars();
+            }, 100);
+        });
+        
+        // Observe the main container for size changes
+        const container = document.querySelector('.container');
+        if (container) {
+            this.resizeObserver.observe(container);
+        }
+    }
+    
+    checkAllToolbars() {
+        for (const [side, toolbar] of this.toolbars) {
+            this.checkAndScale(side);
+        }
+    }
+    
+    checkAndScale(side) {
+        const toolbar = this.toolbars.get(side);
+        if (!toolbar) return;
+        
+        const scale = this.calculateScale(toolbar);
+        this.applyScale(toolbar, scale);
+    }
+    
+    calculateScale(wrapper) {
+        // Get the parent pane-controls width
+        const container = wrapper.parentElement;
+        if (!container) return 1.0;
+        
+        // Account for padding in the container
+        const containerPadding = 32; // 16px on each side
+        const availableWidth = container.clientWidth - containerPadding;
+        
+        // Get the natural width of all controls
+        // Remove any existing transform to measure natural size
+        const currentTransform = wrapper.style.transform;
+        wrapper.style.transform = '';
+        
+        const controlsWidth = wrapper.scrollWidth;
+        
+        // Restore transform
+        wrapper.style.transform = currentTransform;
+        
+        // Calculate scale needed to fit
+        if (controlsWidth > availableWidth) {
+            // Calculate scale with buffer
+            const scale = (availableWidth / controlsWidth) * this.BUFFER_FACTOR;
+            // Enforce minimum scale
+            return Math.max(scale, this.MIN_SCALE);
+        }
+        
+        return 1.0; // No scaling needed
+    }
+    
+    applyScale(wrapper, scale) {
+        if (scale < 1.0) {
+            // Apply transform origin to keep controls left-aligned
+            wrapper.style.transformOrigin = 'left center';
+            wrapper.style.transform = `scale(${scale})`;
+        } else {
+            // Reset to normal
+            wrapper.style.transform = '';
+            wrapper.style.transformOrigin = '';
+        }
+    }
+    
+    destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        clearTimeout(this.checkTimeout);
+    }
+}
+
+// Create global instance
+const toolbarScaler = new ToolbarScaler();
+
 // Global settings and state
 let currentZoom = 1.0;
 let appConfig = null;
@@ -151,6 +263,9 @@ let paragraphFuzziness = 0.0;  // 0.0-1.0
 let sentenceMatchingEnabled = true;
 let sentenceAlgorithm = 'thomas';  // 'thomas', 'levenshtein', 'character'
 let sentenceFuzziness = 0.0;  // 0.0-1.0
+
+// Strikethrough setting (left side only)
+let strikethroughEnabled = true;  // Default enabled
 
 // Store resize observers to prevent memory leaks
 const resizeObservers = new Map();
@@ -177,6 +292,9 @@ let currentSentences = {
 
 // Store fuzzy matched sentence pairs
 let fuzzyMatchedPairs = [];
+
+// Store character diff pairs
+let characterDiffPairs = [];
 
 // Track if CTRL is held
 let ctrlHeld = false;
@@ -722,6 +840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPasteListener();
     setupZoomControls();
     setupColorControls();
+    setupStrikethroughControl();
     await populateAlgorithms();
     setupDiffModeControls();
     setupCopyTooltip();
@@ -731,6 +850,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCtrlTracking();
     setupKeyboardShortcuts();
     setupTabControls();
+    
+    // Initialize toolbar scaling
+    toolbarScaler.init();
     
     // Add copy event listener to deselect text after copy
     document.addEventListener('copy', (e) => {
@@ -1566,6 +1688,31 @@ function setupSelectAllControls() {
     });
 }
 
+function setupStrikethroughControl() {
+    const checkbox = document.getElementById('leftStrikethrough');
+    const leftContent = document.getElementById('leftContent');
+    
+    // Set initial state
+    checkbox.checked = strikethroughEnabled;
+    if (strikethroughEnabled) {
+        leftContent.classList.add('strikethrough-enabled');
+    }
+    
+    // Add event listener
+    checkbox.addEventListener('change', (e) => {
+        strikethroughEnabled = e.target.checked;
+        
+        // Toggle class on left content container
+        if (strikethroughEnabled) {
+            leftContent.classList.add('strikethrough-enabled');
+        } else {
+            leftContent.classList.remove('strikethrough-enabled');
+        }
+        
+        saveState();
+    });
+}
+
 function setupPaneClearButtons() {
     document.getElementById('leftClearBtn').addEventListener('click', () => clearPane('left'));
     document.getElementById('rightClearBtn').addEventListener('click', () => clearPane('right'));
@@ -1640,24 +1787,29 @@ async function performComparison() {
         return;
     }
 
-    // Clear previous comparison highlights (but keep backgrounds)
-    clearComparison();
-    
-    // Reapply paragraph backgrounds after clearing
-    applyParagraphBackgrounds();
-    
-    // Initialize current sentences and fuzzy pairs
-    currentSentences = { left: new Map(), right: new Map() };
-    fuzzyMatchedPairs = [];
-
-    // Get content of selected paragraphs (handle different line endings)
-    const leftParagraphs = leftDoc.content.split(/\r\n|\r|\n/);
-    const rightParagraphs = rightDoc.content.split(/\r\n|\r|\n/);
-
-    const leftSelectedContent = leftSelectedParagraphs.map(i => leftParagraphs[i] || '').join('\n');
-    const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
+    // Show progress dialog
+    const progressDialog = showProgressDialog({
+        message: 'Compare algorithms processing... please wait.'
+    });
 
     try {
+        // Clear previous comparison highlights (but keep backgrounds)
+        clearComparison();
+        
+        // Reapply paragraph backgrounds after clearing
+        applyParagraphBackgrounds();
+        
+        // Initialize current sentences and fuzzy pairs
+        currentSentences = { left: new Map(), right: new Map() };
+        fuzzyMatchedPairs = [];
+        characterDiffPairs = [];
+
+        // Get content of selected paragraphs (handle different line endings)
+        const leftParagraphs = leftDoc.content.split(/\r\n|\r|\n/);
+        const rightParagraphs = rightDoc.content.split(/\r\n|\r|\n/);
+
+        const leftSelectedContent = leftSelectedParagraphs.map(i => leftParagraphs[i] || '').join('\n');
+        const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
         
         let paragraphResult = null;
         let sentenceResult = null;
@@ -1750,6 +1902,7 @@ async function performComparison() {
                 matchedSentences = result.matchedSentences || result.matches;
                 currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
                 fuzzyMatchedPairs = result.fuzzyMatchedPairs || [];
+                characterDiffPairs = result.characterDiffPairs || [];
             } catch (error) {
                 // Fallback to legacy API
                 switch (sentenceAlgorithm) {
@@ -1786,7 +1939,11 @@ async function performComparison() {
             applyDiffHighlighting(diff, paragraphsToProcess.left, paragraphsToProcess.right);
         }
     } catch (error) {
+        progressDialog.close();
         await showInfo(`Error performing comparison: ${error.message}`, 'Comparison Error');
+    } finally {
+        // Ensure dialog is closed
+        progressDialog.close();
     }
 }
 
@@ -2200,7 +2357,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         });
         
         // Add click handlers to matched sentences
-        paragraphElement.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence').forEach(sentence => {
+        paragraphElement.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence, .character-diff-sentence').forEach(sentence => {
             sentence.addEventListener('click', handleSentenceClick);
         });
     });
@@ -2278,7 +2435,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
         });
         
         // Add click handlers to matched sentences
-        paragraphElement.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence').forEach(sentence => {
+        paragraphElement.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence, .character-diff-sentence').forEach(sentence => {
             sentence.addEventListener('click', handleSentenceClick);
         });
     });
@@ -2378,7 +2535,35 @@ function processTextForSentences(text, startOffset, paragraphNum, side, sentence
                     (side === 'right' && pair.right.paragraphIndex === paragraphNum && pair.right.sentence === sentence.text)
                 );
                 
-                if (fuzzyPair) {
+                // Check if this is a character diff sentence
+                const charDiffPair = characterDiffPairs.find(pair => 
+                    (side === 'left' && pair.left.paragraphIndex === paragraphNum && pair.left.sentence === sentence.text) ||
+                    (side === 'right' && pair.right.paragraphIndex === paragraphNum && pair.right.sentence === sentence.text)
+                );
+                
+                if (charDiffPair) {
+                    // This is a character diff sentence - show inline character diff
+                    result += `<span class="character-diff-sentence" data-sentence-key="${sentenceKey.replace(/"/g, '&quot;')}" data-side="${side}">`;
+                    
+                    charDiffPair.charDiff.forEach((part) => {
+                        if (part.added) {
+                            if (side === 'right') {
+                                result += `<span class="inline-char-added diff-part" data-text="${escapeHtml(part.value)}">${escapeHtml(part.value)}</span>`;
+                            }
+                            // Skip added parts on left side
+                        } else if (part.removed) {
+                            if (side === 'left') {
+                                result += `<span class="inline-char-deleted diff-part" data-text="${escapeHtml(part.value)}">${escapeHtml(part.value)}</span>`;
+                            }
+                            // Skip removed parts on right side
+                        } else {
+                            // Unchanged text
+                            result += escapeHtml(part.value);
+                        }
+                    });
+                    
+                    result += `</span>`;
+                } else if (fuzzyPair) {
                     // This is a fuzzy matched sentence - show inline diff
                     result += `<span class="fuzzy-matched-sentence" data-sentence-key="${sentenceKey.replace(/"/g, '&quot;')}" data-side="${side}">`;
                     
@@ -2614,6 +2799,12 @@ function setupZoomControls() {
     function updateZoom() {
         window.api.setZoom(currentZoom);
         zoomLevel.textContent = Math.round(currentZoom * 100) + '%';
+        
+        // Update toolbar scaling after zoom change
+        setTimeout(() => {
+            toolbarScaler.checkAllToolbars();
+        }, 50);
+        
         saveState();
     }
 }
@@ -2817,6 +3008,17 @@ function setupDiffModeControls() {
     sentenceAlgorithmRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             sentenceAlgorithm = e.target.value;
+            
+            // Disable fuzzy slider for character algorithm
+            if (sentenceAlgorithm === 'character') {
+                sentenceFuzzSlider.disabled = true;
+                sentenceFuzzSlider.title = 'Character algorithm does not support fuzzy matching';
+                sentenceFuzzValue.style.opacity = '0.5';
+            } else {
+                sentenceFuzzSlider.disabled = false;
+                sentenceFuzzSlider.title = '';
+                sentenceFuzzValue.style.opacity = '1';
+            }
             
             // Clear comparison but preserve backgrounds
             clearComparison();
@@ -3037,6 +3239,7 @@ function saveState() {
         sentenceMatchingEnabled: sentenceMatchingEnabled,
         sentenceAlgorithm: sentenceAlgorithm,
         sentenceFuzziness: sentenceFuzziness,
+        strikethroughEnabled: strikethroughEnabled,
         // Legacy fields for backward compatibility
         algorithm: sentenceAlgorithm === 'thomas' ? 'sentence' : 'patience',
         fuzziness: sentenceFuzziness,
@@ -3075,6 +3278,7 @@ async function loadSavedState() {
         sentenceMatchingEnabled = state.sentenceMatchingEnabled;
         sentenceAlgorithm = state.sentenceAlgorithm || 'thomas';
         sentenceFuzziness = state.sentenceFuzziness || 0.0;
+        strikethroughEnabled = state.strikethroughEnabled !== false;  // Default true
     } else if (state.algorithm) {
         // Intermediate state format - has algorithm but not new fields
         paragraphMatchingEnabled = true;
@@ -3111,6 +3315,25 @@ async function loadSavedState() {
     document.getElementById('sentenceFuzzSlider').value = sentenceFuzziness * 10;
     document.getElementById('sentenceFuzzValue').textContent = sentenceFuzziness.toFixed(1);
     
+    // Disable fuzzy slider for character algorithm
+    if (sentenceAlgorithm === 'character') {
+        document.getElementById('sentenceFuzzSlider').disabled = true;
+        document.getElementById('sentenceFuzzSlider').title = 'Character algorithm does not support fuzzy matching';
+        document.getElementById('sentenceFuzzValue').style.opacity = '0.5';
+    }
+    
+    // Set strikethrough control
+    const strikethroughCheckbox = document.getElementById('leftStrikethrough');
+    if (strikethroughCheckbox) {
+        strikethroughCheckbox.checked = strikethroughEnabled;
+        const leftContent = document.getElementById('leftContent');
+        if (strikethroughEnabled) {
+            leftContent.classList.add('strikethrough-enabled');
+        } else {
+            leftContent.classList.remove('strikethrough-enabled');
+        }
+    }
+    
     // Update Compare button state
     const compareBtn = document.getElementById('compareBtn');
     compareBtn.disabled = !paragraphMatchingEnabled && !sentenceMatchingEnabled;
@@ -3120,6 +3343,11 @@ async function loadSavedState() {
         currentZoom = state.zoom;
         window.api.setZoom(currentZoom);
         document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+        
+        // Update toolbar scaling after zoom restoration
+        setTimeout(() => {
+            toolbarScaler.checkAllToolbars();
+        }, 100);
     }
 
     // Restore colors

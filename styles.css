@@ -446,10 +446,24 @@ body {
     height: 36px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e42;
+    padding: 0 16px;
+    overflow: hidden; /* Hide overflow when scaling */
+}
+
+.pane-controls-wrapper {
     display: flex;
     align-items: center;
-    padding: 0 16px;
     gap: 12px;
+    height: 100%;
+    
+    /* Ensure smooth scaling */
+    transition: transform 0.2s ease;
+    
+    /* Prevent subpixel rendering issues */
+    will-change: transform;
+    
+    /* Ensure controls don't wrap during measurement */
+    white-space: nowrap;
 }
 
 .control-label {
@@ -565,6 +579,34 @@ body {
 
 .pane-clear-btn:hover {
     background: #4e4e52;
+}
+
+/* Strikethrough control styling */
+.strikethrough-control {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.strikethrough-control input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+/* Apply strikethrough to label when checked */
+.strikethrough-control input[type="checkbox"]:checked + .strikethrough-label {
+    text-decoration: line-through;
+}
+
+/* Strikethrough for deleted text when enabled */
+.strikethrough-enabled .inline-diff-deleted,
+.strikethrough-enabled .inline-char-deleted,
+.strikethrough-enabled .diff-part.sentence-deleted,
+.strikethrough-enabled .diff-part.fuzzy-deleted,
+.strikethrough-enabled .diff-part.patience-deleted {
+    text-decoration: line-through;
 }
 
 .divider {
@@ -876,6 +918,34 @@ body {
     cursor: copy;
 }
 
+/* Character-level diff styles */
+.inline-char-added {
+    background: hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity));
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-weight: bold;
+}
+
+.inline-char-deleted {
+    background: hsla(var(--left-hl-hue), 70%, 50%, var(--left-hl-intensity));
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.inline-char-added:hover,
+.inline-char-deleted:hover {
+    opacity: 0.8;
+}
+
+.inline-char-added.ctrl-held,
+.inline-char-deleted.ctrl-held {
+    cursor: copy;
+}
+
+.character-diff-sentence {
+    cursor: pointer;
+}
+
 /* Status bar */
 .status-bar {
     height: 24px;
@@ -990,4 +1060,30 @@ body {
 
 .custom-tooltip.visible {
     opacity: 1;
+}
+
+/* Progress dialog styles */
+.dialog-progress {
+    text-align: center;
+    padding: 20px;
+}
+
+.progress-spinner {
+    width: 48px;
+    height: 48px;
+    margin: 20px auto;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #4a9eff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.progress-message {
+    margin-top: 20px;
+    color: #ccc;
+    font-size: 14px;
 }
