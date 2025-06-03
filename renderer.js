@@ -198,9 +198,9 @@ function generateTabTitle(filePath) {
     return parts[parts.length - 1] || '(empty)';
 }
 
-function createNewTab(side, content = '', filePath = '') {
+async function createNewTab(side, content = '', filePath = '') {
     if (documents[side].size >= MAX_TABS) {
-        alert(`Maximum number of tabs (${MAX_TABS}) reached.`);
+        await showInfo(`Maximum number of tabs (${MAX_TABS}) reached.`, 'Tab Limit');
         return null;
     }
     
@@ -337,7 +337,7 @@ function closeTab(side, tabId) {
     saveState();
 }
 
-function moveTabToOtherSide(fromSide) {
+async function moveTabToOtherSide(fromSide) {
     // Don't move if it's the only tab
     if (documents[fromSide].size <= 1) {
         // Instead of moving, clear the current tab and create a new one on the other side
@@ -377,7 +377,7 @@ function moveTabToOtherSide(fromSide) {
             }
         }
         
-        const newTabId = createNewTab(toSide, content, filePath);
+        const newTabId = await createNewTab(toSide, content, filePath);
         
         if (newTabId) {
             const newDoc = documents[toSide].get(newTabId);
@@ -438,7 +438,7 @@ function moveTabToOtherSide(fromSide) {
             }
         }
         
-        const newTabId = createNewTab(toSide, content, filePath);
+        const newTabId = await createNewTab(toSide, content, filePath);
         
         if (newTabId) {
             const newDoc = documents[toSide].get(newTabId);
@@ -744,8 +744,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const loaded = await loadSavedState();
         // If no state was loaded, create default empty tabs
         if (!loaded) {
-            createNewTab('left');
-            createNewTab('right');
+            await createNewTab('left');
+            await createNewTab('right');
         }
     });
     
@@ -755,8 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (documents.left.size === 0 && documents.right.size === 0) {
             const loaded = await loadSavedState();
             if (!loaded) {
-                createNewTab('left');
-                createNewTab('right');
+                await createNewTab('left');
+                await createNewTab('right');
             }
         }
     }, 100);
@@ -769,21 +769,21 @@ window.addEventListener('beforeunload', () => {
 
 function setupTabControls() {
     // New tab buttons
-    document.getElementById('leftNewTab').addEventListener('click', () => {
-        createNewTab('left');
+    document.getElementById('leftNewTab').addEventListener('click', async () => {
+        await createNewTab('left');
     });
     
-    document.getElementById('rightNewTab').addEventListener('click', () => {
-        createNewTab('right');
+    document.getElementById('rightNewTab').addEventListener('click', async () => {
+        await createNewTab('right');
     });
     
     // Move tab buttons
-    document.getElementById('leftMoveTab').addEventListener('click', () => {
-        moveTabToOtherSide('left');
+    document.getElementById('leftMoveTab').addEventListener('click', async () => {
+        await moveTabToOtherSide('left');
     });
     
-    document.getElementById('rightMoveTab').addEventListener('click', () => {
-        moveTabToOtherSide('right');
+    document.getElementById('rightMoveTab').addEventListener('click', async () => {
+        await moveTabToOtherSide('right');
     });
 }
 
@@ -799,8 +799,8 @@ function setupDropZones() {
     document.getElementById('rightBrowseBtn').addEventListener('click', () => openFileDialog('right'));
 
     // Set up paste buttons
-    document.getElementById('leftPasteBtn').addEventListener('click', () => pasteFromClipboard('left'));
-    document.getElementById('rightPasteBtn').addEventListener('click', () => pasteFromClipboard('right'));
+    document.getElementById('leftPasteBtn').addEventListener('click', async () => await pasteFromClipboard('left'));
+    document.getElementById('rightPasteBtn').addEventListener('click', async () => await pasteFromClipboard('right'));
 }
 
 function setupDropZone(dropZone, side) {
@@ -847,7 +847,7 @@ async function loadFile(filePath, side) {
             saveState();
         }
     } else {
-        alert(`Error reading file: ${result.error}`);
+        await showInfo(`Error reading file: ${result.error}`, 'File Error');
     }
 }
 
@@ -1728,7 +1728,7 @@ async function performComparison() {
     const rightDoc = getActiveDocument('right');
     
     if (!leftDoc || !rightDoc || !leftDoc.content || !rightDoc.content) {
-        alert('Please load both files before comparing.');
+        await showInfo('Please load both files before comparing.', 'Missing Files');
         return;
     }
 
@@ -1737,7 +1737,7 @@ async function performComparison() {
     const rightSelectedParagraphs = getSelectedParagraphs('right');
 
     if (leftSelectedParagraphs.length === 0 || rightSelectedParagraphs.length === 0) {
-        alert('Please select paragraphs to compare in both documents.');
+        await showInfo('Please select paragraphs to compare in both documents.', 'No Selection');
         return;
     }
 
@@ -1856,11 +1856,11 @@ async function performComparison() {
                     break;
                 case 'levenshtein':
                     // TODO: Implement when available
-                    alert('Levenshtein algorithm not yet implemented');
+                    await showInfo('Levenshtein algorithm not yet implemented', 'Not Implemented');
                     return;
                 case 'character':
                     // TODO: Implement when available
-                    alert('Character algorithm not yet implemented');
+                    await showInfo('Character algorithm not yet implemented', 'Not Implemented');
                     return;
                 default:
                     console.error('Invalid sentence algorithm:', sentenceAlgorithm);
@@ -1877,7 +1877,7 @@ async function performComparison() {
         console.error('Sentence algorithm:', sentenceAlgorithm, 'enabled:', sentenceMatchingEnabled);
         console.error('Left paragraphs selected:', leftSelectedParagraphs.length);
         console.error('Right paragraphs selected:', rightSelectedParagraphs.length);
-        alert(`Error performing comparison: ${error.message}\n\nPlease check the console for more details.`);
+        await showInfo(`Error performing comparison: ${error.message}\n\nPlease check the console for more details.`, 'Comparison Error');
     }
 }
 
@@ -2641,21 +2641,21 @@ function setupFileOpenListener() {
         loadFile(data.path, data.side);
     });
     
-    window.api.onFileOpenedNewTab((data) => {
-        createNewTab(data.side);
+    window.api.onFileOpenedNewTab(async (data) => {
+        await createNewTab(data.side);
         loadFile(data.path, data.side);
     });
     
-    window.api.onNewTab(() => {
+    window.api.onNewTab(async () => {
         // Determine which pane is focused or default to left
         const focusedElement = document.activeElement;
         const leftPane = document.getElementById('leftPane');
         const rightPane = document.getElementById('rightPane');
         
         if (rightPane.contains(focusedElement)) {
-            createNewTab('right');
+            await createNewTab('right');
         } else {
-            createNewTab('left');
+            await createNewTab('left');
         }
     });
     
@@ -2700,7 +2700,7 @@ async function pasteFromClipboard(side) {
     if (text) {
         loadContent(text, side);
     } else {
-        alert('Clipboard is empty or does not contain text.');
+        await showInfo('Clipboard is empty or does not contain text.', 'Empty Clipboard');
     }
 }
 
@@ -2975,16 +2975,16 @@ function setupCtrlTracking() {
 }
 
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
         // Handle Ctrl+V for left pane
         if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
             e.preventDefault();
-            pasteFromClipboard('left');
+            await pasteFromClipboard('left');
         }
         // Handle Ctrl+Shift+V for right pane
         else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
             e.preventDefault();
-            pasteFromClipboard('right');
+            await pasteFromClipboard('right');
         }
         // Handle Ctrl+T for new tab
         else if ((e.ctrlKey || e.metaKey) && e.key === 't' && !e.shiftKey) {
@@ -2995,9 +2995,9 @@ function setupKeyboardShortcuts() {
             const rightPane = document.getElementById('rightPane');
             
             if (rightPane.contains(focusedElement)) {
-                createNewTab('right');
+                await createNewTab('right');
             } else {
-                createNewTab('left');
+                await createNewTab('left');
             }
         }
         // Handle Ctrl+W to close current tab
@@ -3316,20 +3316,20 @@ async function loadSavedState() {
             switchToTab('left', leftActiveTabId);
         } else if (documents.left.size === 0) {
             // Create empty tab if no documents
-            createNewTab('left');
+            await createNewTab('left');
         }
         
         if (rightActiveTabId) {
             switchToTab('right', rightActiveTabId);
         } else if (documents.right.size === 0) {
             // Create empty tab if no documents
-            createNewTab('right');
+            await createNewTab('right');
         }
     } else {
         // Legacy single-document support
         if (state.leftFile && state.leftFile.content) {
             hasDocuments = true;
-            const tabId = createNewTab('left', state.leftFile.content, state.leftFile.path);
+            const tabId = await createNewTab('left', state.leftFile.content, state.leftFile.path);
             if (tabId) {
                 const doc = documents.left.get(tabId);
                 if (doc) {
@@ -3340,7 +3340,7 @@ async function loadSavedState() {
 
         if (state.rightFile && state.rightFile.content) {
             hasDocuments = true;
-            const tabId = createNewTab('right', state.rightFile.content, state.rightFile.path);
+            const tabId = await createNewTab('right', state.rightFile.content, state.rightFile.path);
             if (tabId) {
                 const doc = documents.right.get(tabId);
                 if (doc) {
