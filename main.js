@@ -4,6 +4,10 @@ const fs = require('fs').promises;
 const packageInfo = require('./package.json');
 const Diff = require('diff');
 
+// Import modular diff system
+const AlgorithmRegistry = require('./diff/core/Registry');
+const algorithmRegistry = new AlgorithmRegistry();
+
 let mainWindow;
 let currentZoom = 1.0;
 let config = {};
@@ -129,7 +133,7 @@ async function saveWindowState() {
     const windowStatePath = path.join(userDataPath, 'differon-window-state.json');
     await fs.writeFile(windowStatePath, JSON.stringify(state, null, 2));
   } catch (error) {
-    console.error('Error saving window state:', error);
+    // Error saving window state
   }
 }
 
@@ -484,17 +488,6 @@ ipcMain.handle('diff-paragraph', async (event, leftText, rightText) => {
 
 // Enhanced sentence mode diff handler - process paragraphs individually
 ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText) => {
-  // ===== SENTENCE DIFF DEBUG LOGGING START =====
-  // Uncomment the following block to enable sentence diff debugging
-  /*
-  // Force immediate output
-  process.stdout.write('\n[MAIN PROCESS] diff-sentence handler called\n');
-  process.stderr.write('[MAIN PROCESS STDERR] diff-sentence handler called\n');
-  console.log('\n[MAIN PROCESS] diff-sentence handler called');
-  console.log('[MAIN PROCESS] Left paragraphs:', leftSelectedParagraphs);
-  console.log('[MAIN PROCESS] Right paragraphs:', rightSelectedParagraphs);
-  */
-  // ===== SENTENCE DIFF DEBUG LOGGING END =====
   
   // Use full text if provided, otherwise parse from selected text
   const leftText = leftFullText || leftSelectedText;
@@ -646,50 +639,14 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
   let oU = 0; // First unprocessed sentence in original (0-indexed)
   let rU = 0; // First unprocessed sentence in revised (0-indexed)
   
-  // ===== SENTENCE DIFF DEBUG LOGGING START =====
-  /*
-  // Debug: Log sentence matching process
-  console.log('[SENTENCE DIFF DEBUG] Starting sentence matching...');
-  console.log('[SENTENCE DIFF DEBUG] Total left sentences:', allLeftSentences.length);
-  console.log('[SENTENCE DIFF DEBUG] Total right sentences:', allRightSentences.length);
-  
-  // Debug: Show sentences from fuzzy matched paragraphs
-  console.log('[SENTENCE DIFF DEBUG] Left sentences by paragraph:');
-  leftSentencesByParagraph.forEach(para => {
-    if (para.sentences.length > 0) {
-      console.log(`  Paragraph ${para.paragraphIndex}: ${para.sentences.length} sentences`);
-      para.sentences.forEach((sent, idx) => {
-        console.log(`    [${idx}]: "${sent.substring(0, 50)}..."`);
-      });
-    }
-  });
-  
-  console.log('[SENTENCE DIFF DEBUG] Right sentences by paragraph:');
-  rightSentencesByParagraph.forEach(para => {
-    if (para.sentences.length > 0) {
-      console.log(`  Paragraph ${para.paragraphIndex}: ${para.sentences.length} sentences`);
-      para.sentences.forEach((sent, idx) => {
-        console.log(`    [${idx}]: "${sent.substring(0, 50)}..."`);
-      });
-    }
-  });
-  */
-  // ===== SENTENCE DIFF DEBUG LOGGING END =====
   
   while (oU < allLeftSentences.length) {
     let found = false;
     
-    // ===== SENTENCE DIFF DEBUG LOGGING START =====
-    // console.log(`[SENTENCE DIFF DEBUG] Looking for match for left sentence ${oU}: "${allLeftSentences[oU].sentence}" (paragraph ${allLeftSentences[oU].paragraphIndex})`);
-    // ===== SENTENCE DIFF DEBUG LOGGING END =====
     
     // Look for exact match in remaining revised sentences
     for (let i = rU; i < allRightSentences.length; i++) {
       if (allRightSentences[i].sentence === allLeftSentences[oU].sentence) {
-        // ===== SENTENCE DIFF DEBUG LOGGING START =====
-        // console.log(`[SENTENCE DIFF DEBUG] Found exact match at right sentence ${i}: "${allRightSentences[i].sentence}" (paragraph ${allRightSentences[i].paragraphIndex})`);
-        // console.log(`[SENTENCE DIFF DEBUG] Left paragraph ${allLeftSentences[oU].paragraphIndex} -> Right paragraph ${allRightSentences[i].paragraphIndex}`);
-        // ===== SENTENCE DIFF DEBUG LOGGING END =====
         
         // Found exact match
         // Store the matching relationship
@@ -730,9 +687,6 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
     }
     
     if (!found) {
-      // ===== SENTENCE DIFF DEBUG LOGGING START =====
-      // console.log(`[SENTENCE DIFF DEBUG] No match found for left sentence ${oU}: "${allLeftSentences[oU].sentence}" - marking as deleted`);
-      // ===== SENTENCE DIFF DEBUG LOGGING END =====
       
       // No match found - mark original sentence as deleted
       diff.push({
@@ -817,26 +771,6 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
     // Unchanged sentences don't need position info for highlighting
   }
   
-  // ===== SENTENCE DIFF DEBUG LOGGING START =====
-  /*
-  // Debug: Log final results
-  console.log('[SENTENCE DIFF DEBUG] Final matched sentences:');
-  console.log('  leftToRight mappings:', matchedSentences.leftToRight.size);
-  matchedSentences.leftToRight.forEach((value, key) => {
-    console.log(`    "${key}" -> "${value}"`);
-  });
-  console.log('  rightToLeft mappings:', matchedSentences.rightToLeft.size);
-  
-  console.log('[SENTENCE DIFF DEBUG] Positioned diff items:', positionedDiff.length);
-  positionedDiff.forEach((item, idx) => {
-    if (item.removed) {
-      console.log(`  [${idx}] REMOVED: "${item.value.substring(0, 40)}..."`);
-    } else if (item.added) {
-      console.log(`  [${idx}] ADDED: "${item.value.substring(0, 40)}..."`);
-    }
-  });
-  */
-  // ===== SENTENCE DIFF DEBUG LOGGING END =====
   
   return { 
     diff: positionedDiff, 
@@ -847,18 +781,6 @@ ipcMain.handle('diff-sentence', async (event, leftSelectedText, rightSelectedTex
 
 // Enhanced fuzzy sentence mode diff handler
 ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelectedText, leftSelectedParagraphs, rightSelectedParagraphs, leftFullText, rightFullText, matchThreshold) => {
-  // ===== SENTENCE DIFF DEBUG LOGGING START =====
-  // Uncomment the following block to enable sentence diff debugging
-  /*
-  // Force immediate output
-  process.stdout.write('\n[MAIN PROCESS] diff-fuzzy-sentence handler called\n');
-  process.stderr.write('[MAIN PROCESS STDERR] diff-fuzzy-sentence handler called\n');
-  console.log('\n[MAIN PROCESS] diff-fuzzy-sentence handler called');
-  console.log('[MAIN PROCESS] Left paragraphs:', leftSelectedParagraphs);
-  console.log('[MAIN PROCESS] Right paragraphs:', rightSelectedParagraphs);
-  console.log('[MAIN PROCESS] Match threshold:', matchThreshold);
-  */
-  // ===== SENTENCE DIFF DEBUG LOGGING END =====
   
   // Use full text if provided, otherwise parse from selected text
   const leftText = leftFullText || leftSelectedText;
@@ -1040,14 +962,6 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     });
   });
   
-  // ===== SENTENCE DIFF DEBUG LOGGING START =====
-  /*
-  // Debug: Log sentence extraction
-  console.log('[FUZZY SENTENCE DEBUG] Total left sentences:', allLeftSentences.length);
-  console.log('[FUZZY SENTENCE DEBUG] Total right sentences:', allRightSentences.length);
-  console.log('[FUZZY SENTENCE DEBUG] Match threshold:', matchThreshold);
-  */
-  // ===== SENTENCE DIFF DEBUG LOGGING END =====
   
   // Apply fuzzy matching algorithm
   const diff = [];
@@ -1106,9 +1020,6 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     for (let i = 0; i < allRightSentences.length; i++) {
       if (!rightUsed.has(i) && allRightSentences[i].sentence === allLeftSentences[oU].sentence) {
         // Found exact match
-        // ===== SENTENCE DIFF DEBUG LOGGING START =====
-        // console.log(`[FUZZY DEBUG] Found exact match: "${allLeftSentences[oU].sentence.substring(0, 40)}..." (L:${allLeftSentences[oU].paragraphIndex} -> R:${allRightSentences[i].paragraphIndex})`);
-        // ===== SENTENCE DIFF DEBUG LOGGING END =====
         
         rightUsed.add(i);
         
@@ -1141,9 +1052,6 @@ ipcMain.handle('diff-fuzzy-sentence', async (event, leftSelectedText, rightSelec
     
     // If no exact match, look for fuzzy match
     if (!found) {
-      // ===== SENTENCE DIFF DEBUG LOGGING START =====
-      // console.log(`[FUZZY DEBUG] No exact match for: "${allLeftSentences[oU].sentence.substring(0, 40)}..." from paragraph ${allLeftSentences[oU].paragraphIndex}`);
-      // ===== SENTENCE DIFF DEBUG LOGGING END =====
       
       for (let i = 0; i < allRightSentences.length; i++) {
         if (!rightUsed.has(i)) {
@@ -2303,7 +2211,7 @@ ipcMain.handle('save-state', async (event, state) => {
     await fs.writeFile(statePath, JSON.stringify(state, null, 2));
     return true;
   } catch (error) {
-    console.error('Error saving state:', error);
+    // Error saving state
     return false;
   }
 });
@@ -2332,6 +2240,41 @@ ipcMain.handle('get-config', async () => {
   return config;
 });
 
+// IPC handler for getting available algorithms
+ipcMain.handle('get-algorithms', async (event, type) => {
+  return algorithmRegistry.getMetadata(type);
+});
+
+// IPC handler for modular paragraph diff
+ipcMain.handle('diff-paragraph-modular', async (event, leftText, rightText, algorithmName, options) => {
+  const algorithm = algorithmRegistry.get('paragraph', algorithmName);
+  if (!algorithm) {
+    throw new Error(`Unknown paragraph algorithm: ${algorithmName}`);
+  }
+  
+  try {
+    const result = await algorithm.compare(leftText, rightText, options);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+});
+
+// IPC handler for modular sentence diff
+ipcMain.handle('diff-sentence-modular', async (event, leftText, rightText, algorithmName, options) => {
+  const algorithm = algorithmRegistry.get('sentence', algorithmName);
+  if (!algorithm) {
+    throw new Error(`Unknown sentence algorithm: ${algorithmName}`);
+  }
+  
+  try {
+    const result = await algorithm.compare(leftText, rightText, options);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+});
+
 // IPC handler for opening file dialog
 ipcMain.on('open-file-dialog', async (event, side) => {
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -2349,6 +2292,14 @@ ipcMain.on('open-file-dialog', async (event, side) => {
 app.whenReady().then(async () => {
   await loadConfig();
   await loadWindowState();
+  
+  // Load diff algorithms
+  try {
+    await algorithmRegistry.loadFromDirectory(path.join(__dirname, 'diff'));
+  } catch (error) {
+    // Failed to load diff algorithms
+  }
+  
   createWindow();
 });
 

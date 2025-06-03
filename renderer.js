@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         appConfig = await window.api.getConfig();
     } catch (error) {
-        console.warn('Failed to load config, using defaults');
+        // Failed to load config, using defaults
         appConfig = {
             fuzzySentenceMatching: {
                 minMatchPercent: 10,
@@ -722,6 +722,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPasteListener();
     setupZoomControls();
     setupColorControls();
+    await populateAlgorithms();
     setupDiffModeControls();
     setupCopyTooltip();
     setupPaneClearButtons();
@@ -1136,9 +1137,6 @@ function scrollToMatchingParagraph(fromSide, fromParagraphNum) {
 
 // Scroll to matching sentence in the other pane
 function scrollToMatchingSentence(fromSide, sentenceKey) {
-    // ===== SYNC DEBUG LOGGING START =====
-    // console.log('[DEBUG] scrollToMatchingSentence called:', { fromSide, sentenceKey });
-    // ===== SYNC DEBUG LOGGING END =====
     
     let targetKey;
     let targetSide;
@@ -1151,45 +1149,12 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
         targetSide = 'left';
     }
     
-    // ===== SYNC DEBUG LOGGING START =====
-    /*
-    console.log('[DEBUG] Looking for target:', { 
-        targetKey, 
-        targetSide,
-        matchedSentencesSize: {
-            leftToRight: matchedSentences.leftToRight.size,
-            rightToLeft: matchedSentences.rightToLeft.size
-        }
-    });
-    */
-    // ===== SYNC DEBUG LOGGING END =====
     
     if (targetKey) {
         // Find the sentence element by its key
         // Use querySelectorAll and find the matching one to handle special characters
         const allMatchedSentences = document.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence');
         
-        // ===== SYNC DEBUG LOGGING START =====
-        // console.log('[DEBUG] Total matched sentences found:', allMatchedSentences.length);
-        
-        // Debug: Check for duplicate keys
-        /*
-        const keyOccurrences = [];
-        allMatchedSentences.forEach(el => {
-            if (el.dataset.sentenceKey === targetKey) {
-                keyOccurrences.push({
-                    side: el.dataset.side,
-                    parentId: el.closest('.paragraph')?.id,
-                    text: el.textContent.substring(0, 30) + '...'
-                });
-            }
-        });
-        
-        if (keyOccurrences.length > 1) {
-            console.warn('[DEBUG] Multiple elements found with same key:', targetKey, keyOccurrences);
-        }
-        */
-        // ===== SYNC DEBUG LOGGING END =====
         
         let targetElement = null;
         // Find the element with the correct side
@@ -1200,22 +1165,7 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
             }
         }
         
-        // If no element found with correct side, log warning
-        // ===== SYNC DEBUG LOGGING START =====
-        /*
-        if (!targetElement && keyOccurrences.length > 0) {
-            console.warn('[DEBUG] No element found with correct side. Looking for side:', targetSide);
-            // Fall back to first occurrence (old behavior)
-            for (const el of allMatchedSentences) {
-                if (el.dataset.sentenceKey === targetKey) {
-                    targetElement = el;
-                    console.warn('[DEBUG] Using fallback element with side:', el.dataset.side);
-                    break;
-                }
-            }
-        }
-        */
-        // Note: The above fallback logic is still active, just the logging is commented out
+        // If no element found with correct side, fall back to first occurrence
         if (!targetElement) {
             // Fall back to first occurrence (old behavior)
             for (const el of allMatchedSentences) {
@@ -1225,22 +1175,7 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                 }
             }
         }
-        // ===== SYNC DEBUG LOGGING END =====
         
-        // ===== SYNC DEBUG LOGGING START =====
-        /*
-        console.log('[DEBUG] Target element found:', {
-            found: !!targetElement,
-            targetKey,
-            elementInfo: targetElement ? {
-                className: targetElement.className,
-                datasetSentenceKey: targetElement.dataset.sentenceKey,
-                datasetSide: targetElement.dataset.side,
-                text: targetElement.textContent.substring(0, 50) + '...'
-            } : null
-        });
-        */
-        // ===== SYNC DEBUG LOGGING END =====
         
         if (targetElement) {
             // Get the paragraph containing this sentence
@@ -1248,15 +1183,6 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
             const targetEditor = document.getElementById(`${targetSide}Editor`);
             const targetContent = document.getElementById(`${targetSide}Content`);
             
-            // ===== SYNC DEBUG LOGGING START =====
-            /*
-            console.log('[DEBUG] Elements found:', {
-                targetParagraph: !!targetParagraph,
-                targetEditor: !!targetEditor,
-                targetContent: !!targetContent
-            });
-            */
-            // ===== SYNC DEBUG LOGGING END =====
             
             if (targetParagraph && targetEditor && targetContent) {
                 // Calculate the position to scroll to
@@ -1270,15 +1196,6 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                 // Scroll to center the sentence in view
                 const scrollPosition = offsetFromTop - (editorRect.height / 2) + (targetRect.height / 2);
                 
-                // ===== SYNC DEBUG LOGGING START =====
-                /*
-                console.log('[DEBUG] Scrolling:', {
-                    currentScrollTop: targetContent.scrollTop,
-                    newScrollPosition: scrollPosition,
-                    offsetFromTop
-                });
-                */
-                // ===== SYNC DEBUG LOGGING END =====
                 
                 targetContent.scrollTop = scrollPosition;
                 
@@ -1287,9 +1204,6 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                 const originalBg = targetElement.style.backgroundColor;
                 targetElement.style.backgroundColor = 'rgba(100, 100, 255, 0.5)';
                 
-                // ===== SYNC DEBUG LOGGING START =====
-                // console.log('[DEBUG] Highlighting target sentence');
-                // ===== SYNC DEBUG LOGGING END =====
                 
                 setTimeout(() => {
                     targetElement.style.backgroundColor = originalBg;
@@ -1297,20 +1211,8 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
                         targetElement.style.transition = '';
                     }, 300);
                 }, 600);
-            } else {
-                // ===== SYNC DEBUG LOGGING START =====
-                // console.warn('[DEBUG] Missing required elements for scrolling');
-                // ===== SYNC DEBUG LOGGING END =====
             }
-        } else {
-            // ===== SYNC DEBUG LOGGING START =====
-            // console.warn('[DEBUG] Target element not found for key:', targetKey);
-            // ===== SYNC DEBUG LOGGING END =====
         }
-    } else {
-        // ===== SYNC DEBUG LOGGING START =====
-        // console.warn('[DEBUG] No target key found in matchedSentences map');
-        // ===== SYNC DEBUG LOGGING END =====
     }
 }
 
@@ -1720,9 +1622,6 @@ function clearAll() {
 }
 
 async function performComparison() {
-    // ===== SENTENCE DIFF DEBUG LOGGING START =====
-    // console.error('[PERFORMANCE DEBUG] performComparison called');
-    // ===== SENTENCE DIFF DEBUG LOGGING END =====
     
     const leftDoc = getActiveDocument('left');
     const rightDoc = getActiveDocument('right');
@@ -1759,14 +1658,6 @@ async function performComparison() {
     const rightSelectedContent = rightSelectedParagraphs.map(i => rightParagraphs[i] || '').join('\n');
 
     try {
-        // ===== SENTENCE DIFF DEBUG LOGGING START =====
-        /*
-        console.error('[COMPARISON DEBUG] paragraphMatchingEnabled:', paragraphMatchingEnabled);
-        console.error('[COMPARISON DEBUG] sentenceMatchingEnabled:', sentenceMatchingEnabled);
-        console.error('[COMPARISON DEBUG] sentenceAlgorithm:', sentenceAlgorithm);
-        console.error('[COMPARISON DEBUG] sentenceFuzziness:', sentenceFuzziness);
-        */
-        // ===== SENTENCE DIFF DEBUG LOGGING END =====
         
         let paragraphResult = null;
         let sentenceResult = null;
@@ -1777,11 +1668,27 @@ async function performComparison() {
             const paragraphMaxMatch = appConfig?.fuzzyParagraphMatching?.maxMatchPercent || 100;
             const paragraphMatchThreshold = (paragraphMaxMatch - (paragraphFuzziness * (paragraphMaxMatch - paragraphMinMatch))) / 100;
             
-            // Call appropriate paragraph matching API
-            if (paragraphAlgorithm === 'thomas') {
-                paragraphResult = await window.api.matchParagraphsThomas(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
-            } else if (paragraphAlgorithm === 'patience') {
-                paragraphResult = await window.api.matchParagraphsPatience(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
+            // Call modular paragraph matching API
+            try {
+                const options = {
+                    fuzziness: paragraphFuzziness,
+                    minMatch: paragraphMinMatch / 100,
+                    maxMatch: paragraphMaxMatch / 100
+                };
+                const result = await window.api.diffParagraphModular(
+                    leftDoc.content,
+                    rightDoc.content,
+                    paragraphAlgorithm,
+                    options
+                );
+                paragraphResult = result.matches || result;
+            } catch (error) {
+                // Fallback to legacy API
+                if (paragraphAlgorithm === 'thomas') {
+                    paragraphResult = await window.api.matchParagraphsThomas(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
+                } else if (paragraphAlgorithm === 'patience') {
+                    paragraphResult = await window.api.matchParagraphsPatience(leftDoc.content, rightDoc.content, paragraphMatchThreshold);
+                }
             }
             
             // Apply change bars based on paragraph result
@@ -1820,64 +1727,66 @@ async function performComparison() {
                 paragraphsToProcess.right = rightSelectedParagraphs.filter(idx => !exactMatchedRight.has(idx));
             }
             
-            // Call sentence matching based on sentenceAlgorithm
-            switch (sentenceAlgorithm) {
-                case 'thomas':
-                    if (sentenceFuzziness < 0.01) {
-                        // ===== SENTENCE DIFF DEBUG LOGGING START =====
-                        /*
-                        console.error('[RENDERER DEBUG] Calling diffSentence with:', {
-                            leftParagraphs: paragraphsToProcess.left,
-                            rightParagraphs: paragraphsToProcess.right,
-                            sentenceFuzziness: sentenceFuzziness
-                        });
-                        */
-                        // ===== SENTENCE DIFF DEBUG LOGGING END =====
-                        const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content);
-                        // ===== SENTENCE DIFF DEBUG LOGGING START =====
-                        /*
-                        console.error('[RENDERER DEBUG] diffSentence result:', {
-                            diffLength: result.diff ? result.diff.length : 0,
-                            matchedSentencesSize: result.matchedSentences ? result.matchedSentences.leftToRight.size : 0
-                        });
-                        */
-                        // ===== SENTENCE DIFF DEBUG LOGGING END =====
-                        diff = result.diff;
-                        matchedSentences = result.matchedSentences;
-                        currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
-                        fuzzyMatchedPairs = [];
-                    } else {
-                        const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content, sentenceMatchThreshold);
-                        diff = fuzzyResult.diff;
-                        matchedSentences = fuzzyResult.matchedSentences;
-                        currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
-                        fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
-                    }
-                    break;
-                case 'levenshtein':
-                    // TODO: Implement when available
-                    await showInfo('Levenshtein algorithm not yet implemented', 'Not Implemented');
-                    return;
-                case 'character':
+            // Call modular sentence matching API
+            try {
+                const options = {
+                    fuzziness: sentenceFuzziness,
+                    minMatch: sentenceMinMatch / 100,
+                    maxMatch: sentenceMaxMatch / 100,
+                    leftSelectedParagraphs: paragraphsToProcess.left,
+                    rightSelectedParagraphs: paragraphsToProcess.right,
+                    leftFullParagraphs: leftDoc.content.split(/\r\n|\r|\n/),
+                    rightFullParagraphs: rightDoc.content.split(/\r\n|\r|\n/)
+                };
+                
+                const result = await window.api.diffSentenceModular(
+                    leftSelectedContent,
+                    rightSelectedContent,
+                    sentenceAlgorithm,
+                    options
+                );
+                
+                diff = result.diff;
+                matchedSentences = result.matchedSentences || result.matches;
+                currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
+                fuzzyMatchedPairs = result.fuzzyMatchedPairs || [];
+            } catch (error) {
+                // Fallback to legacy API
+                switch (sentenceAlgorithm) {
+                    case 'thomas':
+                        if (sentenceFuzziness < 0.01) {
+                            const result = await window.api.diffSentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content);
+                            diff = result.diff;
+                            matchedSentences = result.matchedSentences;
+                            currentSentences = result.sentenceInfo || { left: new Map(), right: new Map() };
+                            fuzzyMatchedPairs = [];
+                        } else {
+                            const fuzzyResult = await window.api.diffFuzzySentence(leftSelectedContent, rightSelectedContent, paragraphsToProcess.left, paragraphsToProcess.right, leftDoc.content, rightDoc.content, sentenceMatchThreshold);
+                            diff = fuzzyResult.diff;
+                            matchedSentences = fuzzyResult.matchedSentences;
+                            currentSentences = fuzzyResult.sentenceInfo || { left: new Map(), right: new Map() };
+                            fuzzyMatchedPairs = fuzzyResult.fuzzyMatchedPairs || [];
+                        }
+                        break;
+                    case 'levenshtein':
+                        // TODO: Implement when available
+                        await showInfo('Levenshtein algorithm not yet implemented', 'Not Implemented');
+                        return;
+                    case 'character':
                     // TODO: Implement when available
                     await showInfo('Character algorithm not yet implemented', 'Not Implemented');
                     return;
                 default:
-                    console.error('Invalid sentence algorithm:', sentenceAlgorithm);
+                    // Invalid sentence algorithm
                     return;
+            }
             }
             
             // Apply sentence-level highlighting
             applyDiffHighlighting(diff, paragraphsToProcess.left, paragraphsToProcess.right);
         }
-        
     } catch (error) {
-        console.error('Error performing comparison:', error);
-        console.error('Paragraph algorithm:', paragraphAlgorithm, 'enabled:', paragraphMatchingEnabled);
-        console.error('Sentence algorithm:', sentenceAlgorithm, 'enabled:', sentenceMatchingEnabled);
-        console.error('Left paragraphs selected:', leftSelectedParagraphs.length);
-        console.error('Right paragraphs selected:', rightSelectedParagraphs.length);
-        await showInfo(`Error performing comparison: ${error.message}\n\nPlease check the console for more details.`, 'Comparison Error');
+        await showInfo(`Error performing comparison: ${error.message}`, 'Comparison Error');
     }
 }
 
@@ -2388,26 +2297,10 @@ function handleDiffPartClick(event) {
 }
 
 function handleSentenceClick(event) {
-    // ===== SYNC DEBUG LOGGING START =====
-    // Uncomment the following block to enable sentence sync debugging
-    /*
-    console.log('[DEBUG] handleSentenceClick called', {
-        targetClasses: event.target.classList.toString(),
-        currentTargetClasses: event.currentTarget.classList.toString(),
-        sentenceKey: event.currentTarget.dataset.sentenceKey,
-        side: event.currentTarget.dataset.side,
-        targetTagName: event.target.tagName,
-        currentTargetTagName: event.currentTarget.tagName
-    });
-    */
-    // ===== SYNC DEBUG LOGGING END =====
     
     // Don't handle sentence click if clicking on an inline diff part
     if (event.target.classList.contains('inline-diff-deleted') || 
         event.target.classList.contains('inline-diff-added')) {
-        // ===== SYNC DEBUG LOGGING START =====
-        // console.log('[DEBUG] Click on inline diff part, ignoring');
-        // ===== SYNC DEBUG LOGGING END =====
         return;
     }
     
@@ -2415,16 +2308,9 @@ function handleSentenceClick(event) {
     const sentenceKey = event.currentTarget.dataset.sentenceKey;
     const side = event.currentTarget.dataset.side;
     
-    // ===== SYNC DEBUG LOGGING START =====
-    // console.log('[DEBUG] Processing sentence click:', { sentenceKey, side });
-    // ===== SYNC DEBUG LOGGING END =====
     
     if (sentenceKey && side) {
         scrollToMatchingSentence(side, sentenceKey);
-    } else {
-        // ===== SYNC DEBUG LOGGING START =====
-        // console.warn('[DEBUG] Missing sentenceKey or side:', { sentenceKey, side });
-        // ===== SYNC DEBUG LOGGING END =====
     }
 }
 
@@ -2821,6 +2707,58 @@ function setupColorControls() {
         
         saveState();
     });
+}
+
+async function populateAlgorithms() {
+    try {
+        // Get available algorithms from main process
+        const paragraphAlgorithms = await window.api.getAlgorithms('paragraph');
+        const sentenceAlgorithms = await window.api.getAlgorithms('sentence');
+        
+        // Populate paragraph algorithms
+        const paragraphRadioGroup = document.querySelector('#paragraphEnabled').closest('.algorithm-toolbar').querySelector('.radio-group');
+        if (paragraphRadioGroup && paragraphAlgorithms.length > 0) {
+            paragraphRadioGroup.innerHTML = '';
+            paragraphAlgorithms.forEach((algo, index) => {
+                const label = document.createElement('label');
+                label.className = 'radio-label';
+                label.innerHTML = `
+                    <input type="radio" name="paragraphAlgorithm" value="${algo.name}" ${index === 0 ? 'checked' : ''}>
+                    <span>${algo.displayName}</span>
+                `;
+                paragraphRadioGroup.appendChild(label);
+            });
+        }
+        
+        // Populate sentence algorithms
+        const sentenceRadioGroup = document.querySelector('#sentenceEnabled').closest('.algorithm-toolbar').querySelector('.radio-group');
+        if (sentenceRadioGroup && sentenceAlgorithms.length > 0) {
+            sentenceRadioGroup.innerHTML = '';
+            sentenceAlgorithms.forEach((algo, index) => {
+                const label = document.createElement('label');
+                label.className = 'radio-label';
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'sentenceAlgorithm';
+                input.value = algo.name;
+                if (index === 0) input.checked = true;
+                
+                // Disable placeholder algorithms
+                if (algo.description && algo.description.includes('not yet implemented')) {
+                    input.disabled = true;
+                }
+                
+                const span = document.createElement('span');
+                span.textContent = algo.displayName;
+                
+                label.appendChild(input);
+                label.appendChild(span);
+                sentenceRadioGroup.appendChild(label);
+            });
+        }
+    } catch (error) {
+        // Keep default HTML as fallback
+    }
 }
 
 function setupDiffModeControls() {

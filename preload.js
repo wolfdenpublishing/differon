@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld('api', {
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   // Config
   getConfig: () => ipcRenderer.invoke('get-config'),
+  // Modular diff system
+  getAlgorithms: (type) => ipcRenderer.invoke('get-algorithms', type),
+  diffParagraphModular: (left, right, algorithm, options) => ipcRenderer.invoke('diff-paragraph-modular', left, right, algorithm, options),
+  diffSentenceModular: (left, right, algorithm, options) => ipcRenderer.invoke('diff-sentence-modular', left, right, algorithm, options),
   // Console logging to stdout
   consoleLog: (...args) => ipcRenderer.send('console-log', ...args),
   consoleWarn: (...args) => ipcRenderer.send('console-warn', ...args),
