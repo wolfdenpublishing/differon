@@ -3170,29 +3170,34 @@ function saveState() {
         }
     });
     
-    // Convert documents Map to array for serialization
+    // Convert documents Map to array for serialization, preserving DOM order
     const documentsArray = {
-        left: Array.from(documents.left.entries()).map(([tabId, doc]) => ({
-            tabId: tabId,
-            content: doc.content,
-            filePath: doc.filePath,
-            scrollTop: doc.scrollTop,
-            selectedParagraphs: Array.from(doc.selectedParagraphs),
-            isActive: tabId === activeTab.left,
-            isModified: doc.isModified,
-            pastedTimestamp: doc.pastedTimestamp
-        })),
-        right: Array.from(documents.right.entries()).map(([tabId, doc]) => ({
-            tabId: tabId,
-            content: doc.content,
-            filePath: doc.filePath,
-            scrollTop: doc.scrollTop,
-            selectedParagraphs: Array.from(doc.selectedParagraphs),
-            isActive: tabId === activeTab.right,
-            isModified: doc.isModified,
-            pastedTimestamp: doc.pastedTimestamp
-        }))
+        left: [],
+        right: []
     };
+    
+    // Get tabs in DOM order for each side
+    ['left', 'right'].forEach(side => {
+        const tabsContainer = document.getElementById(`${side}TabsContainer`);
+        const tabs = tabsContainer.querySelectorAll('.tab');
+        
+        tabs.forEach(tab => {
+            const tabId = tab.dataset.tabId;
+            const doc = documents[side].get(tabId);
+            if (doc) {
+                documentsArray[side].push({
+                    tabId: tabId,
+                    content: doc.content,
+                    filePath: doc.filePath,
+                    scrollTop: doc.scrollTop,
+                    selectedParagraphs: Array.from(doc.selectedParagraphs),
+                    isActive: tabId === activeTab[side],
+                    isModified: doc.isModified,
+                    pastedTimestamp: doc.pastedTimestamp
+                });
+            }
+        });
+    });
     
     const state = {
         documents: documentsArray,
