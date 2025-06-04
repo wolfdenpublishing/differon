@@ -1298,26 +1298,41 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
         
         
         if (targetElement) {
-            // Get the paragraph containing this sentence
+            // Get the source sentence element to align with
+            let sourceElement = null;
+            const allSourceSentences = document.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence, .character-diff-sentence');
+            for (const el of allSourceSentences) {
+                if (el.dataset.sentenceKey === sentenceKey && el.dataset.side === fromSide) {
+                    sourceElement = el;
+                    break;
+                }
+            }
+            
             const targetParagraph = targetElement.closest('.paragraph');
             const targetEditor = document.getElementById(`${targetSide}Editor`);
             const targetContent = document.getElementById(`${targetSide}Content`);
+            const sourceEditor = document.getElementById(`${fromSide}Editor`);
             
-            
-            if (targetParagraph && targetEditor && targetContent) {
-                // Calculate the position to scroll to
+            if (targetParagraph && targetEditor && targetContent && sourceElement && sourceEditor) {
+                // Get the source's position relative to viewport
+                const sourceRect = sourceElement.getBoundingClientRect();
+                const sourceEditorRect = sourceEditor.getBoundingClientRect();
+                
+                // Calculate how far down from the top of the editor the source sentence is
+                const sourceOffsetFromTop = sourceRect.top - sourceEditorRect.top;
+                
+                // Get target's current position
                 const targetRect = targetElement.getBoundingClientRect();
-                const editorRect = targetEditor.getBoundingClientRect();
-                const contentRect = targetContent.getBoundingClientRect();
+                const targetEditorRect = targetEditor.getBoundingClientRect();
                 
-                // Calculate the offset from the top of the content area
-                const offsetFromTop = targetRect.top - contentRect.top + targetContent.scrollTop;
+                // Calculate current offset of target from its editor top
+                const targetCurrentOffset = targetRect.top - targetEditorRect.top;
                 
-                // Scroll to center the sentence in view
-                const scrollPosition = offsetFromTop - (editorRect.height / 2) + (targetRect.height / 2);
+                // Calculate scroll adjustment needed
+                const scrollAdjustment = targetCurrentOffset - sourceOffsetFromTop;
                 
-                
-                targetContent.scrollTop = scrollPosition;
+                // Apply the scroll to align horizontally with source
+                targetContent.scrollTop += scrollAdjustment;
                 
                 // Briefly highlight the target sentence
                 targetElement.style.transition = 'background-color 0.3s ease-in-out';
