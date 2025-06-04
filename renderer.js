@@ -1270,11 +1270,10 @@ function scrollToMatchingSentence(fromSide, sentenceKey) {
         targetSide = 'left';
     }
     
-    
     if (targetKey) {
         // Find the sentence element by its key
         // Use querySelectorAll and find the matching one to handle special characters
-        const allMatchedSentences = document.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence');
+        const allMatchedSentences = document.querySelectorAll('.sentence-matched, .fuzzy-matched-sentence, .character-diff-sentence');
         
         
         let targetElement = null;
@@ -2429,7 +2428,6 @@ function handleSentenceClick(event) {
     event.stopPropagation();
     const sentenceKey = event.currentTarget.dataset.sentenceKey;
     const side = event.currentTarget.dataset.side;
-    
     
     if (sentenceKey && side) {
         scrollToMatchingSentence(side, sentenceKey);
