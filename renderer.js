@@ -370,8 +370,11 @@ function switchToTab(side, tabId) {
         saveCurrentTabState(side);
     }
     
-    // Clear current view
-    clearComparison();
+    // Store current document pair before switching
+    const previousLeftDoc = getActiveDocument('left');
+    const previousRightDoc = getActiveDocument('right');
+    const previousLeftPath = previousLeftDoc ? previousLeftDoc.filePath : null;
+    const previousRightPath = previousRightDoc ? previousRightDoc.filePath : null;
     
     // Update active tab
     activeTab[side] = tabId;
@@ -391,14 +394,14 @@ function switchToTab(side, tabId) {
     if (doc) {
         displayDocument(side, doc);
         
-        // Re-run paragraph diff if both sides have active documents
-        const leftDoc = getActiveDocument('left');
-        const rightDoc = getActiveDocument('right');
-        if (leftDoc && leftDoc.content && rightDoc && rightDoc.content) {
-            // Automatic paragraph diff removed - now handled by Compare button
-            // runParagraphDiff();
-        }
+        // Clear all diffs when switching tabs
+        clearComparison();
+        clearParagraphMarkers();
     }
+    
+    // Update button states for the opposite side as well (document pair might have changed)
+    updateTabButtonStates('left');
+    updateTabButtonStates('right');
     
     saveState();
 }
@@ -869,6 +872,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await createNewTab('left');
             await createNewTab('right');
         }
+        // Update button states after loading
+        updateTabButtonStates('left');
+        updateTabButtonStates('right');
     });
     
     // Also attempt to load state immediately in case the event doesn't fire
@@ -880,6 +886,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await createNewTab('left');
                 await createNewTab('right');
             }
+            // Update button states after loading
+            updateTabButtonStates('left');
+            updateTabButtonStates('right');
         }
     }, 100);
 });
@@ -906,6 +915,15 @@ function setupTabControls() {
     
     document.getElementById('rightMoveTab').addEventListener('click', async () => {
         await moveTabToOtherSide('right');
+    });
+    
+    // Reload tab buttons
+    document.getElementById('leftReloadTab').addEventListener('click', async () => {
+        await reloadCurrentFile('left');
+    });
+    
+    document.getElementById('rightReloadTab').addEventListener('click', async () => {
+        await reloadCurrentFile('right');
     });
 }
 
@@ -970,6 +988,109 @@ async function loadFile(filePath, side) {
         }
     } else {
         await showInfo(`Error reading file: ${result.error}`, 'File Error');
+    }
+}
+
+function updateTabButtonStates(side) {
+    const reloadButton = document.getElementById(`${side}ReloadTab`);
+    const doc = getActiveDocument(side);
+    
+    if (reloadButton) {
+        if (doc && doc.filePath && !doc.pastedTimestamp) {
+            // Enable reload button for file documents
+            reloadButton.disabled = false;
+            reloadButton.style.opacity = '1';
+            reloadButton.style.cursor = 'pointer';
+        } else {
+            // Disable reload button for pasted documents or when no document
+            reloadButton.disabled = true;
+            reloadButton.style.opacity = '0.5';
+            reloadButton.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+async function reloadCurrentFile(side) {
+    const doc = getActiveDocument(side);
+    if (!doc || !doc.filePath) {
+        await showInfo('Cannot reload pasted documents. This feature is only available for files.', 'Reload Not Available');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = await showYesNo('Do you want to reload this document from disk?', 'Reload Document');
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Save current state before reloading
+    const savedState = {
+        scrollTop: doc.scrollTop,
+        selectedParagraphs: [],
+        colorSettings: {
+            bgHue: doc.bgHue,
+            bgIntensity: doc.bgIntensity,
+            hlHue: doc.hlHue,
+            hlIntensity: doc.hlIntensity
+        }
+    };
+    
+    // Get currently selected paragraphs
+    const checkboxes = document.querySelectorAll(`#${side}ParagraphNumbers input[type="checkbox"]:checked`);
+    checkboxes.forEach(cb => {
+        const index = parseInt(cb.dataset.paragraphIndex);
+        if (!isNaN(index)) {
+            savedState.selectedParagraphs.push(index);
+        }
+    });
+    
+    // Reload the file
+    const result = await window.api.readFile(doc.filePath);
+    
+    if (result.success) {
+        // Update content
+        doc.content = result.content;
+        doc.isModified = false;
+        updateTabTitle(side, doc.tabId, generateTabTitle(doc.filePath), false);
+        
+        // Restore color settings
+        doc.bgHue = savedState.colorSettings.bgHue;
+        doc.bgIntensity = savedState.colorSettings.bgIntensity;
+        doc.hlHue = savedState.colorSettings.hlHue;
+        doc.hlIntensity = savedState.colorSettings.hlIntensity;
+        
+        // Display document
+        displayDocument(side, doc);
+        
+        // Restore scroll position
+        doc.scrollTop = savedState.scrollTop;
+        const contentDiv = document.getElementById(`${side}Content`);
+        if (contentDiv) {
+            contentDiv.scrollTop = savedState.scrollTop;
+        }
+        
+        // Restore paragraph selections after a brief delay to ensure DOM is updated
+        setTimeout(() => {
+            savedState.selectedParagraphs.forEach(index => {
+                const checkbox = document.querySelector(`#${side}ParagraphNumbers input[data-paragraph-index="${index}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            // Apply backgrounds if any paragraphs were selected
+            if (savedState.selectedParagraphs.length > 0) {
+                applyParagraphBackgrounds();
+            }
+        }, 100);
+        
+        // Clear all diffs after reload
+        clearComparison();
+        
+        saveState();
+    } else {
+        await showInfo(`Unable to reload file. The file may have been deleted or moved.\n\nFile: ${doc.filePath}`, 'File Not Found');
     }
 }
 
@@ -1433,6 +1554,9 @@ function displayFile(side, content, filePath) {
         dropZone.style.display = 'flex';
         editor.style.display = 'none';
     }
+    
+    // Update tab button states
+    updateTabButtonStates(side);
     
     // Update document name and icon
     const iconElement = document.getElementById(`${side}DocIcon`);

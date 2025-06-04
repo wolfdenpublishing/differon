@@ -360,7 +360,8 @@ body {
 }
 
 .tab-new,
-.tab-move {
+.tab-move,
+.tab-reload {
     width: 28px;
     height: 24px;
     display: flex;
@@ -376,7 +377,8 @@ body {
 }
 
 .tab-new:hover,
-.tab-move:hover {
+.tab-move:hover,
+.tab-reload:hover {
     background: #4e4e52;
     color: #ffffff;
 }
