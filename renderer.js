@@ -2185,7 +2185,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
     
     // Process diff parts to collect highlights
     diff.forEach((part, index) => {
-        if (part.side === 'left' && (part.removed || part.added)) {
+        if (part.side === 'left' && part.removed) {
             // Find which paragraphs this change affects
             leftSelectedParagraphs.forEach(paragraphNum => {
                 const paragraphInfo = leftParagraphMap.get(paragraphNum);
@@ -2215,7 +2215,7 @@ function applyDiffHighlighting(diff, leftSelectedParagraphs, rightSelectedParagr
                     }
                 }
             });
-        } else if (part.side === 'right' && (part.removed || part.added)) {
+        } else if (part.side === 'right' && part.added) {
             // Find which paragraphs this change affects
             rightSelectedParagraphs.forEach(paragraphNum => {
                 const paragraphInfo = rightParagraphMap.get(paragraphNum);

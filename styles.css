@@ -589,7 +589,8 @@ body {
 .strikethrough-enabled .inline-char-deleted,
 .strikethrough-enabled .diff-part.sentence-deleted,
 .strikethrough-enabled .diff-part.fuzzy-deleted,
-.strikethrough-enabled .diff-part.patience-deleted {
+.strikethrough-enabled .diff-part.patience-deleted,
+.strikethrough-enabled .diff-part.levenshtein-deleted {
     text-decoration: line-through;
 }
 
@@ -859,13 +860,15 @@ body {
 
 .diff-part.sentence-deleted,
 .diff-part.fuzzy-deleted,
-.diff-part.patience-deleted {
+.diff-part.patience-deleted,
+.diff-part.levenshtein-deleted {
     background: hsla(var(--left-hl-hue), 70%, 50%, var(--left-hl-intensity));
 }
 
 .diff-part.sentence-added,
 .diff-part.fuzzy-added,
-.diff-part.patience-added {
+.diff-part.patience-added,
+.diff-part.levenshtein-added {
     background: hsla(var(--right-hl-hue), 70%, 50%, var(--right-hl-intensity));
 }
 
