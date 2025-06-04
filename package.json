@@ -1,6 +1,6 @@
 {
   "name": "Differon",
-  "version": "0.7.27",
+  "version": "0.7.28",
   "description": "A natural language file comparison tool",
   "main": "main.js",
   "scripts": {

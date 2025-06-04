@@ -2636,6 +2636,72 @@ function clearComparison() {
     });
 }
 
+// Clear only paragraph-level diff results
+function clearParagraphDiff() {
+    // Clear paragraph change bars
+    clearParagraphMarkers();
+    
+    // Clear matched paragraphs
+    matchedParagraphs.leftToRight.clear();
+    matchedParagraphs.rightToLeft.clear();
+    
+    // Remove paragraph-level visual changes
+    document.querySelectorAll('.paragraph-matched').forEach(el => {
+        el.classList.remove('paragraph-matched');
+        el.style.cursor = '';
+        // Remove click handlers by cloning
+        const newEl = el.cloneNode(true);
+        el.parentNode.replaceChild(newEl, el);
+    });
+    
+    document.querySelectorAll('.paragraph-changed').forEach(el => {
+        el.classList.remove('paragraph-changed', 'paragraph-deleted', 'paragraph-added');
+    });
+}
+
+// Clear only sentence-level diff results
+function clearSentenceDiff() {
+    // Clear matched sentences
+    matchedSentences.leftToRight.clear();
+    matchedSentences.rightToLeft.clear();
+    if (currentSentences && currentSentences.left) {
+        currentSentences.left.clear();
+        currentSentences.right.clear();
+    }
+    fuzzyMatchedPairs = [];
+    characterDiffPairs = [];
+    
+    // Remove sentence-level highlighting
+    ['left', 'right'].forEach(side => {
+        const doc = getActiveDocument(side);
+        if (!doc) return;
+        
+        const paragraphs = doc.content.split(/\r\n|\r|\n/);
+        paragraphs.forEach((paragraph, index) => {
+            const paragraphElement = document.getElementById(`${side}-content-paragraph-${index}`);
+            if (paragraphElement) {
+                // Remove only sentence-level spans while preserving paragraph structure
+                const wasMatched = paragraphElement.classList.contains('paragraph-matched');
+                const dataParagraphIndex = paragraphElement.dataset.paragraphIndex;
+                const hasDeleted = paragraphElement.classList.contains('deleted');
+                const hasAdded = paragraphElement.classList.contains('added');
+                
+                paragraphElement.textContent = paragraph || '\n';
+                
+                // Restore paragraph-level classes
+                if (wasMatched) paragraphElement.classList.add('paragraph-matched');
+                if (hasDeleted) paragraphElement.classList.add('deleted');
+                if (hasAdded) paragraphElement.classList.add('added');
+                
+                // Restore data attribute
+                if (dataParagraphIndex !== undefined) {
+                    paragraphElement.dataset.paragraphIndex = dataParagraphIndex;
+                }
+            }
+        });
+    });
+}
+
 function cycleTab(reverse = false) {
     const focusedElement = document.activeElement;
     const leftPane = document.getElementById('leftPane');
@@ -2941,6 +3007,11 @@ function setupDiffModeControls() {
         paragraphMatchingEnabled = e.target.checked;
         updateCompareButtonState();
         
+        // Clear paragraph diff when toggling off
+        if (!e.target.checked) {
+            clearParagraphDiff();
+        }
+        
         // Don't change backgrounds when toggling paragraph matching
         // Backgrounds should only depend on checkbox state
         
@@ -2951,6 +3022,12 @@ function setupDiffModeControls() {
     sentenceCheckbox.addEventListener('change', (e) => {
         sentenceMatchingEnabled = e.target.checked;
         updateCompareButtonState();
+        
+        // Clear sentence diff when toggling off
+        if (!e.target.checked) {
+            clearSentenceDiff();
+        }
+        
         saveState();
     });
     
@@ -2959,8 +3036,8 @@ function setupDiffModeControls() {
         radio.addEventListener('change', (e) => {
             paragraphAlgorithm = e.target.value;
             
-            // Clear comparison but preserve backgrounds
-            clearComparison();
+            // Clear only paragraph diff, preserve sentence diff
+            clearParagraphDiff();
             applyParagraphBackgrounds();
             
             saveState();
@@ -2983,8 +3060,8 @@ function setupDiffModeControls() {
                 sentenceFuzzValue.style.opacity = '1';
             }
             
-            // Clear comparison but preserve backgrounds
-            clearComparison();
+            // Clear only sentence diff, preserve paragraph diff
+            clearSentenceDiff();
             applyParagraphBackgrounds();
             
             saveState();
@@ -2998,8 +3075,8 @@ function setupDiffModeControls() {
         paragraphFuzziness = convertedValue;
         paragraphFuzzValue.textContent = convertedValue.toFixed(1);
         
-        // Clear comparison but preserve backgrounds
-        clearComparison();
+        // Clear only paragraph diff, preserve sentence diff
+        clearParagraphDiff();
         applyParagraphBackgrounds();
         
         saveState();
@@ -3012,8 +3089,8 @@ function setupDiffModeControls() {
         sentenceFuzziness = convertedValue;
         sentenceFuzzValue.textContent = convertedValue.toFixed(1);
         
-        // Clear comparison but preserve backgrounds
-        clearComparison();
+        // Clear only sentence diff, preserve paragraph diff
+        clearSentenceDiff();
         applyParagraphBackgrounds();
         
         saveState();
