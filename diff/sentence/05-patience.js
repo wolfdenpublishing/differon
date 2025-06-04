@@ -31,14 +31,6 @@ class PatienceSentenceAlgorithm extends DiffAlgorithm {
       rightFullParagraphs = []
     } = validatedOptions;
     
-    console.log('Patience sentence compare called with:', {
-      leftTextLength: leftText.length,
-      rightTextLength: rightText.length,
-      leftSelectedParagraphs,
-      rightSelectedParagraphs,
-      fuzziness
-    });
-    
     // Calculate match threshold from fuzziness
     const matchThreshold = SimilarityCalculator.fuzzinessToThreshold(fuzziness, minMatch, maxMatch);
     const isFuzzyMode = matchThreshold < 1.0;
@@ -87,13 +79,6 @@ class PatienceSentenceAlgorithm extends DiffAlgorithm {
         leftFullParagraphs, rightFullParagraphs
       );
     }
-    
-    console.log('Patience sentence result:', {
-      diffLength: diff.length,
-      exactMatches: matches.exactMatches.length,
-      fuzzyMatches: matches.fuzzyMatches.length,
-      firstDiffItems: diff.slice(0, 3)
-    });
     
     return this.formatResult(result.diff, matches, result);
   }
@@ -391,15 +376,38 @@ class PatienceSentenceAlgorithm extends DiffAlgorithm {
       rightToLeft: new Map()
     };
     
-    // Add all matches (both exact and fuzzy)
+    // Helper to find paragraph for a sentence and create key
+    const createSentenceKey = (sentence, selectedParagraphs, fullParagraphs) => {
+      const paragraphInfo = this.findParagraphForSentence(
+        sentence.text,
+        selectedParagraphs,
+        fullParagraphs
+      );
+      if (paragraphInfo) {
+        return `${paragraphInfo.paragraphIndex}:${sentence.text}`;
+      }
+      return null;
+    };
+    
+    // Add all matches (both exact and fuzzy) with proper keys
     matches.exactMatches.forEach(match => {
-      result.leftToRight.set(match.left, match.right);
-      result.rightToLeft.set(match.right, match.left);
+      const leftKey = createSentenceKey(leftSentences[match.left], leftSelectedParagraphs, leftFullParagraphs);
+      const rightKey = createSentenceKey(rightSentences[match.right], rightSelectedParagraphs, rightFullParagraphs);
+      
+      if (leftKey && rightKey) {
+        result.leftToRight.set(leftKey, rightKey);
+        result.rightToLeft.set(rightKey, leftKey);
+      }
     });
     
     matches.fuzzyMatches.forEach(match => {
-      result.leftToRight.set(match.left, match.right);
-      result.rightToLeft.set(match.right, match.left);
+      const leftKey = createSentenceKey(leftSentences[match.left], leftSelectedParagraphs, leftFullParagraphs);
+      const rightKey = createSentenceKey(rightSentences[match.right], rightSelectedParagraphs, rightFullParagraphs);
+      
+      if (leftKey && rightKey) {
+        result.leftToRight.set(leftKey, rightKey);
+        result.rightToLeft.set(rightKey, leftKey);
+      }
     });
     
     return result;
