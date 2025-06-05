@@ -256,6 +256,95 @@
             padding-left: 25px;
             color: #cccccc;
         }
+        
+        .screenshots-section {
+            margin-bottom: 60px;
+        }
+        
+        .screenshots-section h2 {
+            color: #d4d4d4;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+        
+        .screenshot-box {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .screenshot-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #3e3e42;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .screenshot-box img:hover {
+            transform: scale(1.05);
+        }
+        
+        .screenshot-box h3 {
+            color: #d4d4d4;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .screenshot-box p {
+            color: #cccccc;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        /* Modal for full-size images */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+        }
+        
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 8px;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .modal-close:hover {
+            color: #bbb;
+        }
     </style>
 </head>
 <body>
@@ -291,6 +380,32 @@
                 <div class="feature-icon">🔓</div>
                 <h3>Open Source</h3>
                 <p>Free to use, modify, and contribute. Community-driven development ensures transparency and continuous improvement.</p>
+            </div>
+        </div>
+        
+        <div class="screenshots-section">
+            <h2>Screenshots</h2>
+            <div class="screenshots-grid">
+                <div class="screenshot-box">
+                    <img src="screen-01-main-interface.jpg" alt="Main Interface" onclick="openModal(this.src)">
+                    <h3>Main Interface</h3>
+                    <p>The clean, dark-themed interface showing side-by-side document comparison</p>
+                </div>
+                <div class="screenshot-box">
+                    <img src="screen-04-paragraph-changes.jpg" alt="Paragraph Changes" onclick="openModal(this.src)">
+                    <h3>Paragraph-Level Changes</h3>
+                    <p>Vertical change bars indicate modified paragraphs with fuzzy matching support</p>
+                </div>
+                <div class="screenshot-box">
+                    <img src="screen-05-sentence-highlighting.jpg" alt="Sentence Highlighting" onclick="openModal(this.src)">
+                    <h3>Sentence-Level Highlighting</h3>
+                    <p>Detailed sentence-level comparison within changed paragraphs</p>
+                </div>
+                <div class="screenshot-box">
+                    <img src="screen-07-click-to-sync.jpg" alt="Click to Sync" onclick="openModal(this.src)">
+                    <h3>Interactive Features</h3>
+                    <p>Click any matched section to instantly sync both documents to that location</p>
+                </div>
             </div>
         </div>
         
@@ -421,5 +536,30 @@ npm run dist</div>
             </p>
         </div>
     </div>
+    <!-- Modal for full-size images -->
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <script>
+        function openModal(src) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = src;
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>
