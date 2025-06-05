@@ -18,7 +18,7 @@
     "language",
     "compare"
   ],
-  "author": "Ron Pacheco",
+  "author": "Ron Thomas",
   "license": "MIT",
   "devDependencies": {
     "electron": "^29.0.0",
@@ -31,7 +31,7 @@
   "build": {
     "appId": "pub.wolfden.differon",
     "productName": "Differon",
-    "copyright": "Copyright © 2025 Ron Pacheco",
+    "copyright": "Copyright © 2025 Ron Thomas",
     "directories": {
       "output": "dist"
     },
@@ -86,8 +86,8 @@
       ],
       "icon": "build/icon.png",
       "category": "Development",
-      "maintainer": "Ron Pacheco",
-      "vendor": "Ron Pacheco",
+      "maintainer": "Ron Thomas",
+      "vendor": "Ron Thomas",
       "synopsis": "Natural language file comparison",
       "description": "A file comparison tool optimized for comparing written text documents using natural language processing techniques."
     },

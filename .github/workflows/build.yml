@@ -15,7 +15,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest]
       fail-fast: false  # Don't cancel other jobs if one fails
 
     steps:
@@ -30,12 +30,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # macOS specific: Skip setuptools installation (not needed for dmg)
-      # - name: Install macOS build tools
-      #   if: matrix.os == 'macos-latest'
-      #   run: |
-      #     python3 -m pip install setuptools
-
       # Linux specific: Install required packages
       - name: Install Linux build tools
         if: matrix.os == 'ubuntu-latest'
@@ -45,9 +39,6 @@ jobs:
 
       - name: Build Electron app
         run: npm run dist
-        env:
-          # Disable code signing for macOS in CI
-          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       # Debug: List what was built
       - name: List dist contents
@@ -64,7 +55,6 @@ jobs:
           path: |
             dist/*.exe
             dist/*.msi
-            dist/*.dmg
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
@@ -94,7 +84,6 @@ jobs:
           draft: true
           files: |
             installers/**/*.exe
-            installers/**/*.dmg
             installers/**/*.AppImage
             installers/**/*.deb
           fail_on_unmatched_files: false
