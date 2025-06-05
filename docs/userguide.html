@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Differon User Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d4d4d4;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+        }
+        
+        .header {
+            background-color: #2d2d30;
+            color: #d4d4d4;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid #3e3e42;
+        }
+        
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        
+        .header .version {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .header .build-date {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .content {
+            background-color: #252526;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border: 1px solid #3e3e42;
+        }
+        
+        h2 {
+            color: #d4d4d4;
+            border-bottom: 2px solid #569cd6;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+        
+        h3 {
+            color: #cccccc;
+            margin-top: 30px;
+        }
+        
+        h4 {
+            color: #9cdcfe;
+            margin-top: 20px;
+        }
+        
+        .toc {
+            background-color: #2d2d30;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .toc h2 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+        
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .toc ul ul {
+            padding-left: 20px;
+        }
+        
+        .toc a {
+            color: #569cd6;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .screenshot {
+            display: block;
+            max-width: 100%;
+            margin: 20px auto;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            margin: 20px 0;
+        }
+        
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        .keyboard-shortcut {
+            display: inline-block;
+            padding: 3px 8px;
+            margin: 0 2px;
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #ce9178;
+        }
+        
+        .feature-box {
+            background-color: #1e1e1e;
+            border-left: 4px solid #569cd6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+            border: 1px solid #569cd6;
+        }
+        
+        .warning-box {
+            background-color: #3e3e42;
+            border-left: 4px solid #f9a825;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+            color: #f9a825;
+        }
+        
+        .tip-box {
+            background-color: #1e1e1e;
+            border-left: 4px solid #4ec9b0;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+            border: 1px solid #4ec9b0;
+            color: #4ec9b0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        th {
+            background-color: #2d2d30;
+            font-weight: bold;
+            color: #d4d4d4;
+        }
+        
+        .algorithm-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .algorithm-card {
+            background-color: #2d2d30;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .algorithm-card h4 {
+            margin-top: 0;
+            color: #9cdcfe;
+        }
+        
+        code {
+            background-color: #1e1e1e;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            color: #ce9178;
+        }
+        .nav-bar {
+            background-color: #2d2d30;
+            padding: 10px 20px;
+            margin: -20px -20px 20px -20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .nav-bar a {
+            color: #569cd6;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-bar a:hover {
+            background-color: #3e3e42;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <a href="index.html">← Back to Home</a>
+        <a href="https://github.com/wolfdenpublishing/differon">GitHub Repository</a>
+        <a href="https://github.com/wolfdenpublishing/differon/releases/latest">Latest Release</a>
+    </div>
+    <div class="header">
+        <h1>Differon</h1>
+        <div class="version">Version 0.7.30</div>
+        <div class="build-date">Build Date: June 4, 2025</div>
+    </div>
+    
+    <div class="content">
+        <div style="background-color: #2d2d30; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center; border: 1px solid #3e3e42;">
+            <h3 style="margin-top: 0; color: #d4d4d4;">Project Information</h3>
+            <p style="margin: 10px 0;">
+                <strong>Author:</strong> Ron Thomas<br>
+                <strong>Email:</strong> <a href="mailto:ron@wolfden.pub" style="color: #569cd6;">ron@wolfden.pub</a><br>
+                <strong>GitHub:</strong> <a href="https://github.com/wolfdenpublishing/differon" target="_blank" style="color: #569cd6;">https://github.com/wolfdenpublishing/differon</a>
+            </p>
+        </div>
+        
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#getting-started">Getting Started</a>
+                    <ul>
+                        <li><a href="#interface-overview">Interface Overview</a></li>
+                        <li><a href="#loading-documents">Loading Documents</a></li>
+                    </ul>
+                </li>
+                <li><a href="#comparing-documents">Comparing Documents</a>
+                    <ul>
+                        <li><a href="#paragraph-diff">Paragraph-Level Differences</a></li>
+                        <li><a href="#sentence-diff">Sentence-Level Differences</a></li>
+                        <li><a href="#fuzzy-matching">Fuzzy Matching</a></li>
+                    </ul>
+                </li>
+                <li><a href="#diff-algorithms">Diff Algorithms</a>
+                    <ul>
+                        <li><a href="#paragraph-algorithms">Paragraph Algorithms</a></li>
+                        <li><a href="#sentence-algorithms">Sentence Algorithms</a></li>
+                    </ul>
+                </li>
+                <li><a href="#navigation-features">Navigation Features</a>
+                    <ul>
+                        <li><a href="#click-to-sync">Click-to-Sync</a></li>
+                        <li><a href="#scrolling">Synchronized Scrolling</a></li>
+                    </ul>
+                </li>
+                <li><a href="#document-management">Document Management</a>
+                    <ul>
+                        <li><a href="#tabs">Working with Tabs</a></li>
+                        <li><a href="#tab-reordering">Tab Reordering</a></li>
+                    </ul>
+                </li>
+                <li><a href="#text-operations">Text Operations</a>
+                    <ul>
+                        <li><a href="#copying-text">Copying Text</a></li>
+                        <li><a href="#editing">Editing Documents</a></li>
+                    </ul>
+                </li>
+                <li><a href="#customization">Customization</a>
+                    <ul>
+                        <li><a href="#colors">Color Settings</a></li>
+                        <li><a href="#zoom">Zoom Controls</a></li>
+                    </ul>
+                </li>
+                <li><a href="#keyboard-shortcuts">Keyboard Shortcuts</a></li>
+                <li><a href="#example-files">Example Files</a></li>
+                <li><a href="#tips-tricks">Tips & Tricks</a></li>
+            </ul>
+        </div>
+        
+        <h2 id="overview">Overview</h2>
+        <p>Differon is a specialized file comparison tool designed specifically for comparing written text documents such as prose, articles, stories, and other natural language content. Unlike traditional diff tools that are optimized for source code, Differon uses natural language processing techniques to provide meaningful comparisons that respect the structure and flow of written text.</p>
+        
+        <div class="feature-box">
+            <strong>Key Features:</strong>
+            <ul>
+                <li>Natural language-aware paragraph and sentence comparison</li>
+                <li>Multi-tab interface supporting up to 20 documents per side</li>
+                <li>Two-level diff analysis: paragraph and sentence</li>
+                <li>Fuzzy matching for identifying similar content</li>
+                <li>Click-to-sync navigation between matching sections</li>
+                <li>Customizable highlighting colors</li>
+                <li>Multiple diff algorithms optimized for different use cases</li>
+            </ul>
+        </div>
+        
+        <h2 id="getting-started">Getting Started</h2>
+        
+        <h3 id="interface-overview">Interface Overview</h3>
+        <p>The Differon interface consists of several key components:</p>
+        
+        <img src="screen-01-main-interface.jpg" alt="Main interface showing all major components" class="screenshot">
+        
+        <p>The main window is divided into:</p>
+        <ul>
+            <li><strong>Left Document Pane:</strong> Displays the first document for comparison</li>
+            <li><strong>Right Document Pane:</strong> Displays the second document for comparison</li>
+            <li><strong>Control Panel:</strong> Located at the top, contains comparison controls and settings</li>
+            <li><strong>Tab Bar:</strong> Above each document pane, allows multiple documents to be open</li>
+        </ul>
+        
+        <h3 id="loading-documents">Loading Documents</h3>
+        <p>There are several ways to load documents into Differon:</p>
+        
+        <img src="screen-02-load-buttons.jpg" alt="Document loading buttons in the toolbar" class="screenshot">
+        
+        <ol>
+            <li><strong>Click the folder icon</strong> in either the left or right pane's toolbar</li>
+            <li><strong>Drag and drop</strong> files directly onto either document pane</li>
+            <li><strong>Paste from clipboard:</strong> Use <span class="keyboard-shortcut">Ctrl+V</span> to paste text content as a new document</li>
+            <li><strong>Use keyboard shortcuts:</strong>
+                <ul>
+                    <li><span class="keyboard-shortcut">Ctrl+O</span> to open in the left pane</li>
+                    <li><span class="keyboard-shortcut">Ctrl+Shift+O</span> to open in the right pane</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h4>Document Types</h4>
+        <p>Differon distinguishes between two types of documents, indicated by icons in the tab:</p>
+        
+        <table style="margin: 20px 0;">
+            <thead>
+                <tr>
+                    <th style="width: 60px; text-align: center;">Icon</th>
+                    <th>Document Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--document-text-16-regular.svg" alt="File Document" style="width: 24px; height: 24px;"></td>
+                    <td><strong>File Document</strong></td>
+                    <td>A document loaded from a file on disk</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--clipboard-text-ltr-16-regular.svg" alt="Pasted Document" style="width: 24px; height: 24px;"></td>
+                    <td><strong>Pasted Document</strong></td>
+                    <td>A document created from clipboard content</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="tip-box">
+            <strong>Tip:</strong> Pasted documents can have their titles edited by clicking on the document title. This is useful for organizing multiple clipboard comparisons.
+        </div>
+        
+        <div class="tip-box">
+            <strong>Tip:</strong> Differon remembers your open documents and their positions when you close the application, so you can pick up right where you left off.
+        </div>
+        
+        <h2 id="comparing-documents">Comparing Documents</h2>
+        
+        <p>Differon provides two levels of comparison that can be used independently or together:</p>
+        
+        <img src="screen-03-compare-controls.jpg" alt="Compare and Clear buttons with diff level checkboxes" class="screenshot">
+        
+        <h3 id="paragraph-diff">Paragraph-Level Differences</h3>
+        
+        <p>When paragraph-level diff is enabled, Differon identifies which paragraphs have been added, deleted, or modified between the two documents.</p>
+        
+        <img src="screen-04-paragraph-changes.jpg" alt="Document showing paragraph change bars" class="screenshot">
+        
+        <p><strong>Visual indicators:</strong></p>
+        <ul>
+            <li><strong>Change bars:</strong> 3-pixel vertical bars appear next to modified paragraphs</li>
+            <li><strong>Background highlighting:</strong> Changed paragraphs receive a subtle background color</li>
+            <li><strong>Variable opacity:</strong> Fuzzy-matched paragraphs show with reduced opacity based on similarity</li>
+        </ul>
+        
+        <h3 id="sentence-diff">Sentence-Level Differences</h3>
+        
+        <p>Sentence-level diff provides fine-grained comparison within paragraphs, using natural language processing to identify sentence boundaries.</p>
+        
+        <img src="screen-05-sentence-highlighting.jpg" alt="Document showing sentence-level highlighting" class="screenshot">
+        
+        <p><strong>How it works:</strong></p>
+        <ol>
+            <li>Select paragraphs by clicking on them (they'll show a selection highlight)</li>
+            <li>Enable "Sentence Diff" in the control panel</li>
+            <li>Click "Compare" to analyze differences</li>
+            <li>Changed sentences appear with stronger highlighting</li>
+            <li>For fuzzy-matched sentences, only the differing words are highlighted</li>
+        </ol>
+        
+        <div class="video-container">
+            <video src="video-01-sentence-diff-demo.mp4" controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <h3 id="fuzzy-matching">Fuzzy Matching</h3>
+        
+        <p>Fuzzy matching allows Differon to identify content that has been modified but remains similar.</p>
+        
+        <img src="screen-06-fuzzy-sliders.jpg" alt="Fuzzy matching threshold sliders" class="screenshot">
+        
+        <p>Each diff level has its own fuzziness control:</p>
+        <ul>
+            <li><strong>Paragraph Fuzziness:</strong> Controls how similar paragraphs must be to be considered matches</li>
+            <li><strong>Sentence Fuzziness:</strong> Controls sentence similarity threshold</li>
+            <li><strong>Range:</strong> 0% (exact matches only) to 100% (very loose matching)</li>
+        </ul>
+        
+        <div class="warning-box">
+            <strong>Note:</strong> Higher fuzziness values may result in false matches. Start with lower values (20-40%) and adjust as needed.
+        </div>
+        
+        <h2 id="diff-algorithms">Diff Algorithms</h2>
+        
+        <p>Differon offers multiple algorithms for both paragraph and sentence comparison, each optimized for different scenarios:</p>
+        
+        <h3 id="paragraph-algorithms">Paragraph Algorithms</h3>
+        
+        <div class="algorithm-comparison">
+            <div class="algorithm-card">
+                <h4>Thomas Algorithm</h4>
+                <p><strong>Best for:</strong> Sequential text with minimal reordering</p>
+                <p><strong>Characteristics:</strong></p>
+                <ul>
+                    <li>Fast and efficient</li>
+                    <li>Preserves document order</li>
+                    <li>Good for version comparisons</li>
+                </ul>
+                <p><strong>With fuzzy matching:</strong> Identifies similar paragraphs even with minor edits</p>
+            </div>
+            
+            <div class="algorithm-card">
+                <h4>Patience Algorithm</h4>
+                <p><strong>Best for:</strong> Documents with structural changes</p>
+                <p><strong>Characteristics:</strong></p>
+                <ul>
+                    <li>Better at handling moved content</li>
+                    <li>Identifies unique anchors first</li>
+                    <li>More accurate for reorganized text</li>
+                </ul>
+                <p><strong>With fuzzy matching:</strong> Finds relocated paragraphs with modifications</p>
+            </div>
+        </div>
+        
+        <h3 id="sentence-algorithms">Sentence Algorithms</h3>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Algorithm</th>
+                    <th>Best Use Case</th>
+                    <th>Fuzzy Matching Behavior</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Thomas</strong></td>
+                    <td>Line-by-line edits within paragraphs</td>
+                    <td>Shows word-level differences in similar sentences</td>
+                </tr>
+                <tr>
+                    <td><strong>Patience</strong></td>
+                    <td>Reordered sentences within paragraphs</td>
+                    <td>Matches moved sentences with edits</td>
+                </tr>
+                <tr>
+                    <td><strong>Levenshtein</strong></td>
+                    <td>Heavy editing with insertions/deletions</td>
+                    <td>Calculates edit distance for similarity</td>
+                </tr>
+                <tr>
+                    <td><strong>Character</strong></td>
+                    <td>Precise character-level comparison</td>
+                    <td>Shows exact character changes</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2 id="navigation-features">Navigation Features</h2>
+        
+        <h3 id="click-to-sync">Click-to-Sync</h3>
+        
+        <p>Click-to-sync allows you to quickly navigate between corresponding sections in both documents.</p>
+        
+        <img src="screen-07-click-to-sync.jpg" alt="Demonstration of click-to-sync feature" class="screenshot">
+        
+        <p><strong>How to use:</strong></p>
+        <ol>
+            <li>Click on any matched paragraph or sentence</li>
+            <li>The opposite pane automatically scrolls to the corresponding content</li>
+            <li>Both sections are temporarily highlighted for easy identification</li>
+        </ol>
+        
+        <div class="video-container">
+            <video src="video-02-click-sync-demo.mp4" controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <h3 id="scrolling">Synchronized Scrolling</h3>
+        
+        <p>While Differon doesn't enforce synchronized scrolling, the click-to-sync feature helps maintain alignment between documents as you navigate.</p>
+        
+        <h2 id="document-management">Document Management</h2>
+        
+        <h3 id="tabs">Working with Tabs</h3>
+        
+        <p>Differon supports multiple documents through its tab interface:</p>
+        
+        <img src="screen-08-multiple-tabs.jpg" alt="Multiple document tabs open in both panes" class="screenshot">
+        
+        <ul>
+            <li><strong>Maximum tabs:</strong> 20 per side (left and right)</li>
+            <li><strong>Tab controls:</strong>
+                <ul>
+                    <li>Click a tab to switch documents</li>
+                    <li>Click the × to close a tab</li>
+                    <li>Middle-click to close (on supported systems)</li>
+                </ul>
+            </li>
+            <li><strong>Active tab:</strong> Highlighted with a different background color</li>
+        </ul>
+        
+        <h3 id="tab-reordering">Tab Reordering</h3>
+        
+        <p>Tabs can be reordered by dragging:</p>
+        
+        <img src="screen-09-tab-drag.jpg" alt="Dragging a tab to reorder" class="screenshot">
+        
+        <ol>
+            <li>Click and hold on a tab</li>
+            <li>Drag left or right within the same pane</li>
+            <li>Drop to reorder</li>
+        </ol>
+        
+        <div class="warning-box">
+            <strong>Note:</strong> Tabs cannot be dragged between left and right panes. Use the tab management buttons to move documents between panes.
+        </div>
+        
+        <h3 id="tab-management">Tab Management Controls</h3>
+        
+        <p>Differon provides several buttons for managing tabs and documents:</p>
+        
+        <table style="margin: 20px 0;">
+            <thead>
+                <tr>
+                    <th style="width: 60px; text-align: center;">Icon</th>
+                    <th>Function</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--folder-add-16-regular.svg" alt="New Tab" style="width: 24px; height: 24px;"></td>
+                    <td><strong>New Tab</strong></td>
+                    <td>Opens a new empty tab or loads a new document</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--folder-sync-16-regular.svg" alt="Reload" style="width: 24px; height: 24px;"></td>
+                    <td><strong>Reload File</strong></td>
+                    <td>Reloads the current file from disk (file tabs only)</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--folder-arrow-right-16-regular.svg" alt="Move Right" style="width: 24px; height: 24px;"></td>
+                    <td><strong>Move to Revised</strong></td>
+                    <td>Moves the current document from Original to Revised pane</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"><img src="fluent--folder-arrow-left-16-regular.svg" alt="Move Left" style="width: 24px; height: 24px;"></td>
+                    <td><strong>Move to Original</strong></td>
+                    <td>Moves the current document from Revised to Original pane</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="tip-box">
+            <strong>Tip:</strong> The reload button is particularly useful when working with documents that may be modified by external programs while Differon is open.
+        </div>
+        
+        <h2 id="text-operations">Text Operations</h2>
+        
+        <h3 id="copying-text">Copying Text</h3>
+        
+        <p>Differon provides intelligent text copying features:</p>
+        
+        <img src="screen-10-copy-buttons.jpg" alt="Copy and append buttons in the interface" class="screenshot">
+        
+        <p><strong>Copy methods:</strong></p>
+        <ul>
+            <li><strong>Click paragraphs/sentences:</strong> Replaces clipboard content</li>
+            <li><strong>Ctrl+Click:</strong> Appends to existing clipboard content</li>
+            <li><strong>Copy button:</strong> Copies selected text</li>
+            <li><strong>Standard shortcuts:</strong> <span class="keyboard-shortcut">Ctrl+C</span> works as expected</li>
+        </ul>
+        
+        <h3 id="editing">Editing Documents</h3>
+        
+        <div class="warning-box">
+            <strong>Note:</strong> Document editing is not currently supported in Differon. This feature may be included in a future release.
+        </div>
+        
+        <p>Differon is currently focused on providing powerful insight into how the text of two documents differ. While editing capabilities are not available in the current version, the application excels at:</p>
+        <ul>
+            <li>Identifying differences at both paragraph and sentence levels</li>
+            <li>Showing precise word-level changes within sentences</li>
+            <li>Navigating between corresponding sections</li>
+            <li>Copying text from documents for use in other applications</li>
+        </ul>
+        
+        <h2 id="customization">Customization</h2>
+        
+        <h3 id="colors">Color Settings</h3>
+        
+        <p>Customize highlighting colors for better visibility:</p>
+        
+        <img src="screen-11-color-settings.jpg" alt="Color customization dialog" class="screenshot">
+        
+        <p>Available color settings:</p>
+        <ul>
+            <li>Paragraph change indicators</li>
+            <li>Sentence highlighting</li>
+            <li>Selection colors</li>
+            <li>Sync highlighting</li>
+        </ul>
+        
+        <h3 id="zoom">Zoom Controls</h3>
+        
+        <p>Adjust the display size for comfortable reading:</p>
+        <ul>
+            <li><span class="keyboard-shortcut">Ctrl++</span> Zoom in</li>
+            <li><span class="keyboard-shortcut">Ctrl+-</span> Zoom out</li>
+            <li><span class="keyboard-shortcut">Ctrl+0</span> Reset zoom</li>
+        </ul>
+        
+        <h2 id="keyboard-shortcuts">Keyboard Shortcuts</h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Shortcut</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Open Left</td>
+                    <td><span class="keyboard-shortcut">Ctrl+O</span></td>
+                    <td>Open file in left pane</td>
+                </tr>
+                <tr>
+                    <td>Open Right</td>
+                    <td><span class="keyboard-shortcut">Ctrl+Shift+O</span></td>
+                    <td>Open file in right pane</td>
+                </tr>
+                <tr>
+                    <td>Save</td>
+                    <td><span class="keyboard-shortcut">Ctrl+S</span></td>
+                    <td>Save current document</td>
+                </tr>
+                <tr>
+                    <td>Close Tab</td>
+                    <td><span class="keyboard-shortcut">Ctrl+W</span></td>
+                    <td>Close active tab</td>
+                </tr>
+                <tr>
+                    <td>Compare</td>
+                    <td><span class="keyboard-shortcut">F5</span></td>
+                    <td>Run comparison</td>
+                </tr>
+                <tr>
+                    <td>Clear</td>
+                    <td><span class="keyboard-shortcut">Esc</span></td>
+                    <td>Clear all highlights</td>
+                </tr>
+                <tr>
+                    <td>Copy</td>
+                    <td><span class="keyboard-shortcut">Ctrl+C</span></td>
+                    <td>Copy selected text</td>
+                </tr>
+                <tr>
+                    <td>Select All</td>
+                    <td><span class="keyboard-shortcut">Ctrl+A</span></td>
+                    <td>Select entire document</td>
+                </tr>
+                <tr>
+                    <td>Find</td>
+                    <td><span class="keyboard-shortcut">Ctrl+F</span></td>
+                    <td>Find in document</td>
+                </tr>
+                <tr>
+                    <td>Zoom In</td>
+                    <td><span class="keyboard-shortcut">Ctrl++</span></td>
+                    <td>Increase zoom level</td>
+                </tr>
+                <tr>
+                    <td>Zoom Out</td>
+                    <td><span class="keyboard-shortcut">Ctrl+-</span></td>
+                    <td>Decrease zoom level</td>
+                </tr>
+                <tr>
+                    <td>Reset Zoom</td>
+                    <td><span class="keyboard-shortcut">Ctrl+0</span></td>
+                    <td>Reset to 100%</td>
+                </tr>
+                <tr>
+                    <td>Next Tab</td>
+                    <td><span class="keyboard-shortcut">Ctrl+Tab</span></td>
+                    <td>Switch to next tab</td>
+                </tr>
+                <tr>
+                    <td>Previous Tab</td>
+                    <td><span class="keyboard-shortcut">Ctrl+Shift+Tab</span></td>
+                    <td>Switch to previous tab</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2 id="example-files">Example Files</h2>
+        
+        <p>Differon includes example files to help you explore its features. In the <code>examples/</code> folder, you'll find three versions of the first chapter of Charles Dickens' "A Tale of Two Cities" (now in the public domain):</p>
+        
+        <div class="feature-box">
+            <h4>Included Example Files:</h4>
+            <ul>
+                <li><strong>tale1.txt</strong> - A modified version with spelling errors and other minor changes</li>
+                <li><strong>tale2.txt</strong> - A moderately edited version with word changes, sentence changes, and relocated text</li>
+                <li><strong>tale3.txt</strong> - The original version of Dickens' Chapter 1 without modification</li>
+            </ul>
+        </div>
+        
+        <p>These files contain various types of differences that demonstrate Differon's capabilities:</p>
+        
+        <ul>
+            <li><strong>Spelling corrections:</strong> Compare tale1.txt to tale3.txt to see how spelling errors are highlighted</li>
+            <li><strong>Word and sentence changes:</strong> tale2.txt contains substantive edits including synonym replacements</li>
+            <li><strong>Relocated content:</strong> Some text in tale2.txt has been moved to different positions</li>
+            <li><strong>Minor edits:</strong> Small punctuation and formatting differences between versions</li>
+        </ul>
+        
+        <div class="tip-box">
+            <h4>Try These Exercises:</h4>
+            <ol>
+                <li><strong>Basic comparison:</strong> Load tale1.txt (Original) and tale3.txt (Revised), run a paragraph diff with Thomas algorithm to see spelling corrections</li>
+                <li><strong>Multiple document comparison:</strong> Add tale2.txt as a new tab on the Original side, then compare it to tale3.txt to see more substantial changes</li>
+                <li><strong>Explore paragraph algorithms:</strong> Try both Thomas and Patience algorithms on tale2.txt vs tale3.txt to see how they handle relocated content differently</li>
+                <li><strong>Sentence-level analysis:</strong> Select changed paragraphs and enable sentence diff to see word-level changes within sentences</li>
+                <li><strong>Fuzzy matching exploration:</strong> Adjust the paragraph fuzziness slider to 30-40% when comparing tale2.txt and tale3.txt to see how relocated content gets matched</li>
+                <li><strong>Interface navigation:</strong> Practice click-to-sync between matched paragraphs and sentences</li>
+                <li><strong>Algorithm granularity:</strong> Try the Character algorithm for sentence diff to see the most detailed character-by-character comparison</li>
+            </ol>
+        </div>
+        
+        <h2 id="tips-tricks">Tips & Tricks</h2>
+        
+        <div class="tip-box">
+            <h4>For Best Results:</h4>
+            <ul>
+                <li><strong>Start with lower fuzzy values:</strong> Begin with 20-30% and increase if needed</li>
+                <li><strong>Use Thomas for drafts:</strong> When comparing sequential versions of the same document</li>
+                <li><strong>Use Patience for restructuring:</strong> When paragraphs have been moved around</li>
+                <li><strong>Combine both diff levels:</strong> Use paragraph diff to find changes, then sentence diff for details</li>
+                <li><strong>Click-to-sync for navigation:</strong> Quickly jump between corresponding sections</li>
+                <li><strong>Save your layout:</strong> Window size, zoom, and open files are remembered</li>
+            </ul>
+        </div>
+        
+        <div class="warning-box">
+            <h4>Performance Considerations:</h4>
+            <ul>
+                <li>Large documents (>10MB) may take longer to process</li>
+                <li>High fuzzy matching values increase processing time</li>
+                <li>Sentence diff on long paragraphs can be CPU-intensive</li>
+                <li>Algorithms with finer granularity (e.g., Character) have longer processing times</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

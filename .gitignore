@@ -50,3 +50,6 @@ yarn.lock
 # Claude Code files
 .claude/
 CLAUDE*
+
+# Local sandbox files
+.sandbox
